@@ -15,10 +15,14 @@ import {
   Loader2,
   XCircle,
   AlertTriangle,
+  UploadCloud as UploadCloudIcon
 } from 'lucide-react';
 import type { VerifyDocumentOutput } from '@/ai/flows/document-verification-ai';
 import { verifyDocument } from '@/ai/flows/document-verification-ai';
 import { cn } from '@/lib/utils';
+import { useAuth, useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, serverTimestamp } from 'firebase/firestore';
 
 interface VerificationProgressProps {
   file: File & { preview: string };
@@ -32,6 +36,7 @@ type VerificationStep = {
 };
 
 const initialSteps: VerificationStep[] = [
+  { name: 'Uploading Securely', status: 'pending', icon: <UploadCloudIcon className="h-5 w-5" /> },
   { name: 'Extracting Text (OCR)', status: 'pending', icon: <FileText className="h-5 w-5" /> },
   { name: 'Verifying QR/Barcode', status: 'pending', icon: <ScanQrCode className="h-5 w-5" /> },
   { name: 'Analyzing Text Alignment', status: 'pending', icon: <AlignHorizontalDistributeCenter className="h-5 w-5" /> },
@@ -45,9 +50,12 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
   const [result, setResult] = useState<VerifyDocumentOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(autoStart);
+  
+  const auth = useAuth();
+  const firestore = useFirestore();
 
   useEffect(() => {
-    if (!autoStart) return;
+    if (!autoStart || !auth?.currentUser || !firestore) return;
 
     const fileToDataUri = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -59,12 +67,39 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
     };
 
     const runVerification = async () => {
+      const { currentUser } = auth;
+      if (!currentUser) {
+          setError("User is not authenticated.");
+          setIsVerifying(false);
+          return;
+      }
+      
       try {
+        // 1. Upload to Storage
+        setSteps(prev => {
+            const newSteps = [...prev];
+            newSteps[0].status = 'running';
+            return newSteps;
+        });
+        setProgress(1 * (100 / (initialSteps.length + 1)));
+
+        const storage = getStorage();
+        const storageRef = ref(storage, `user_uploads/${currentUser.uid}/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        setSteps(prev => {
+            const newSteps = [...prev];
+            newSteps[0].status = 'completed';
+            return newSteps;
+        });
+        
+        // 2. Get Data URI for AI
         const dataUri = await fileToDataUri(file);
         
-        // Simulate step-by-step progress for better UX
-        for (let i = 0; i < initialSteps.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+        // 3. Simulate step-by-step progress for better UX
+        for (let i = 1; i < initialSteps.length; i++) {
+          await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
           setSteps(prev => {
             const newSteps = [...prev];
             if(i > 0) newSteps[i-1].status = 'completed';
@@ -74,9 +109,20 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
           setProgress((i + 1) * (100 / (initialSteps.length + 1) ));
         }
 
+        // 4. Call AI verification flow
         const aiResult = await verifyDocument({ documentDataUri: dataUri });
-        
         setResult(aiResult);
+        
+        // 5. Save result to Firestore
+        const historyCollection = collection(firestore, 'users', currentUser.uid, 'verification_history');
+        await addDocumentNonBlocking(historyCollection, {
+            documentName: file.name,
+            documentUrl: downloadURL,
+            isAuthentic: aiResult.isAuthentic,
+            verificationDetails: aiResult.verificationDetails,
+            timestamp: serverTimestamp()
+        });
+
         setProgress(100);
         setSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
 
@@ -91,7 +137,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
 
     runVerification();
 
-  }, [autoStart, file]);
+  }, [autoStart, file, auth, firestore]);
 
   const getStepIcon = (status: VerificationStep['status']) => {
     switch (status) {
@@ -131,12 +177,12 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
       </CardHeader>
       <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
-          <div className="aspect-square relative">
+          <div className="aspect-square relative rounded-md border p-1 bg-white">
             <Image
               src={file.preview}
               alt={file.name}
               fill
-              className="object-contain rounded-md border p-1"
+              className="object-contain"
               onLoad={() => URL.revokeObjectURL(file.preview)}
             />
           </div>

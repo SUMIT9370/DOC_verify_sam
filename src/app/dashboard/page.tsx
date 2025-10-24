@@ -6,20 +6,20 @@ import { ArrowUpRight, CheckCircle, Clock, FileScan, XCircle } from 'lucide-reac
 const stats = [
   {
     title: 'Documents Verified',
-    value: '1,250',
-    change: '+15.2% this month',
+    value: '0',
+    change: 'No data yet',
     icon: <CheckCircle className="h-6 w-6 text-green-500" />,
   },
   {
     title: 'Pending Review',
-    value: '42',
-    change: '-3.1% this week',
+    value: '0',
+    change: 'No data yet',
     icon: <Clock className="h-6 w-6 text-yellow-500" />,
   },
   {
     title: 'Fakes Detected',
-    value: '89',
-    change: '+5 since yesterday',
+    value: '0',
+    change: 'No data yet',
     icon: <XCircle className="h-6 w-6 text-red-500" />,
   },
 ];
@@ -60,28 +60,13 @@ export default function DashboardPage() {
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>A log of your most recent document verifications.</CardDescription>
+          <CardDescription>Your most recent document verifications will appear here.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
-                    <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${i % 2 === 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
-                            {i % 2 === 0 ? <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> : <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
-                        </div>
-                        <div>
-                            <p className="font-semibold">Document #{1250 - i}</p>
-                            <p className="text-sm text-muted-foreground">B.Tech Degree - {i % 2 === 0 ? 'Verified' : 'Fake Detected'}</p>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-sm font-medium">{'2024-05-' + (23-i)}</p>
-                        <p className="text-xs text-muted-foreground">10:3{5-i} AM</p>
-                    </div>
-                </div>
-            ))}
-          </div>
+            <div className="text-center p-10">
+                <p className="text-muted-foreground">No recent activity to display.</p>
+                <p className="text-sm text-muted-foreground">Verify a document to get started.</p>
+            </div>
           <Button variant="link" className="mt-4 p-0 h-auto">
             <Link href="/dashboard/history" className="flex items-center">
                 View All History <ArrowUpRight className="h-4 w-4 ml-1" />
