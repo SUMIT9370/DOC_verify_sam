@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +13,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
@@ -19,54 +27,97 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { documentTypes, type DocumentTypeConfig } from './document-types';
+import { cn } from '@/lib/utils';
 
-const formSchema = z.object({
-  studentName: z.string().min(1, { message: 'Student name is required.' }),
-  universityName: z.string().min(1, { message: 'University name is required.' }),
-  degreeName: z.string().min(1, { message: 'Degree name is required.' }),
-  dateOfIssue: z.string().min(1, { message: 'Date of issue is required.' }),
+// Base schema for the initial document type selection
+const baseSchema = z.object({
+  documentType: z.string().min(1, { message: 'Please select a document type.' }),
 });
 
 export function IssueDocumentForm() {
+  const [selectedDocType, setSelectedDocType] = useState<DocumentTypeConfig | null>(null);
+  const [currentSchema, setCurrentSchema] = useState<z.ZodObject<any>>(baseSchema);
+
   const firestore = useFirestore();
   const { toast } = useToast();
-  
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      studentName: '',
-      universityName: '',
-      degreeName: '',
-      dateOfIssue: '',
-    },
+
+  const form = useForm({
+    resolver: zodResolver(currentSchema),
   });
 
   const { isSubmitting } = form.formState;
+  const watchedDocType = useWatch({ control: form.control, name: 'documentType' });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  // Effect to update the form schema when a new document type is selected
+  useState(() => {
+    const newDocType = documentTypes.find(doc => doc.value === watchedDocType);
+    if (newDocType) {
+      setSelectedDocType(newDocType);
+      // Dynamically build the Zod schema from the config
+      const fieldsSchema = newDocType.fields.reduce((schema, field) => {
+        let fieldValidation;
+        switch (field.type) {
+          case 'number':
+            fieldValidation = z.coerce.number().min(1, `${field.label} is required.`);
+            break;
+          default:
+            fieldValidation = z.string().min(1, `${field.label} is required.`);
+            break;
+        }
+        return schema.extend({ [field.name]: fieldValidation });
+      }, z.object({}));
+
+      const newSchema = baseSchema.merge(fieldsSchema);
+      setCurrentSchema(newSchema);
+      form.reset({}, { keepValues: true }); // Reset validation state but keep values
+    } else {
+      setSelectedDocType(null);
+      setCurrentSchema(baseSchema);
+    }
+  });
+
+
+  async function onSubmit(values: z.infer<typeof currentSchema>) {
     if (!firestore) {
+      toast({
+        title: 'Error',
+        description: 'Database not available. Please try again later.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!selectedDocType) {
         toast({
             title: 'Error',
-            description: 'Database not available. Please try again later.',
+            description: 'Invalid document type selected.',
             variant: 'destructive',
-        });
-        return;
+          });
+          return;
     }
 
+    // Prepare data for Firestore by separating the document type from the rest of the data
+    const { documentType, ...documentData } = values;
+    const dataToSave = {
+      documentType: selectedDocType.label, // Use the user-friendly label
+      documentData: documentData,
+    };
+
     const mastersCollection = collection(firestore, 'document_masters');
-    addDoc(mastersCollection, values)
+    addDoc(mastersCollection, dataToSave)
       .then(() => {
         toast({
           title: 'Success!',
           description: 'New document master has been issued and saved.',
         });
-        form.reset();
+        form.reset({ documentType: selectedDocType.value });
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: mastersCollection.path,
           operation: 'create',
-          requestResourceData: values,
+          requestResourceData: dataToSave,
         });
 
         errorEmitter.emit('permission-error', permissionError);
@@ -78,59 +129,55 @@ export function IssueDocumentForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="studentName"
+          name="documentType"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Student Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Anjali Sharma" {...field} />
-              </FormControl>
+              <FormLabel>Document Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a document type to issue" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {documentTypes.map(docType => (
+                    <SelectItem key={docType.value} value={docType.value}>
+                      {docType.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="universityName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>University / Institution Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., University of Delhi" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="degreeName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Degree / Certificate Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Bachelor of Technology in Computer Science" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="dateOfIssue"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Date of Issue</FormLabel>
-              <FormControl>
-                <Input type="date" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Issue Document Master
+        
+        <div className={cn("space-y-4 transition-opacity duration-300", selectedDocType ? 'opacity-100' : 'opacity-50 pointer-events-none')}>
+            {selectedDocType?.fields.map(fieldConfig => (
+                <FormField
+                    key={fieldConfig.name}
+                    control={form.control}
+                    name={fieldConfig.name}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{fieldConfig.label}</FormLabel>
+                            <FormControl>
+                                <Input
+                                    type={fieldConfig.type}
+                                    placeholder={fieldConfig.placeholder}
+                                    {...field}
+                                />
+                            </FormControl>
+                             <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            ))}
+        </div>
+
+        <Button type="submit" disabled={isSubmitting || !selectedDocType} className="w-full">
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Issue Document Master
         </Button>
       </form>
     </Form>
