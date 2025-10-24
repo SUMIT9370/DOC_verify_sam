@@ -141,17 +141,23 @@ export function IssueDocumentForm() {
   // Effect to update the form fields and schema when a new document type is selected
   useEffect(() => {
     const newDocType = documentTypes.find(doc => doc.value === watchedDocType);
-    setSelectedDocType(newDocType || null);
-    
-    // Update the Zod schema for validation
     const newSchema = newDocType ? schemaMap[newDocType.value] : baseSchema;
-    form.reset(undefined, {
-      keepValues: false,
-      keepDirty: false,
-      keepDefaultValues: false,
-    });
-    // @ts-ignore zodResolver is not updating the schema for the form
+    
+    // Reset the form but keep the selected documentType
+    const currentValues = form.getValues();
+    const newDefaultValues: Record<string, any> = { documentType: currentValues.documentType };
+    if (newDocType) {
+        newDocType.fields.forEach(field => {
+            newDefaultValues[field.name] = '';
+        });
+    }
+
+    form.reset(newDefaultValues);
+
+    // This is a workaround to force react-hook-form to re-evaluate with the new schema
+    // @ts-ignore
     form.resolver = zodResolver(newSchema);
+    setSelectedDocType(newDocType || null);
 
 
   }, [watchedDocType, form]);
@@ -190,7 +196,9 @@ export function IssueDocumentForm() {
           title: 'Success!',
           description: 'New document master has been issued and saved.',
         });
-        form.reset({ documentType: selectedDocType.value });
+        // Reset the form completely, including the documentType selector
+        form.reset({ documentType: '' });
+        setSelectedDocType(null);
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -212,7 +220,7 @@ export function IssueDocumentForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Document Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a document type to issue" />
