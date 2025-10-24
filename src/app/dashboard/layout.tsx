@@ -43,11 +43,15 @@ export default function DashboardLayout({
   const router = useRouter();
   const { isAdmin, isAdminLoading } = useAdmin();
 
-  const baseMenuItems = [
+  const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/verify', label: 'Verify Documents', icon: FileScan },
     { href: '/dashboard/history', label: 'History', icon: History },
   ];
+
+  if (isAdmin) {
+    menuItems.push({ href: '/admin', label: 'Admin', icon: Shield });
+  }
 
   const handleLogout = async () => {
     if (auth) {
@@ -60,42 +64,6 @@ export default function DashboardLayout({
     if (!email) return 'U';
     return email.charAt(0).toUpperCase();
   };
-
-  const renderMenu = () => {
-    const menuItems = [...baseMenuItems];
-    if (isAdmin) {
-      menuItems.push({ href: '/admin', label: 'Admin', icon: Shield });
-    }
-
-    return (
-      <>
-        {menuItems.map((item) => (
-          <SidebarMenuItem key={item.href}>
-            <Link href={item.href} className="w-full">
-              <SidebarMenuButton
-                isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
-                tooltip={{ children: item.label, side: 'right' }}
-              >
-                <item.icon />
-                <span>{item.label}</span>
-              </SidebarMenuButton>
-            </Link>
-          </SidebarMenuItem>
-        ))}
-      </>
-    );
-  };
-  
-  const renderAdminLoadingSkeleton = () => (
-      <SidebarMenuItem>
-        <div className='w-full'>
-            <div className='flex items-center gap-2 rounded-md p-2 text-left text-sm'>
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-4 w-20" />
-            </div>
-        </div>
-      </SidebarMenuItem>
-  );
 
   return (
     <AuthGuard>
@@ -113,8 +81,44 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {renderMenu()}
-              {isAdminLoading && renderAdminLoadingSkeleton()}
+              {isAdminLoading ? (
+                 <>
+                  {menuItems.map((item) => (
+                     <SidebarMenuItem key={item.href}>
+                        <div className='w-full'>
+                            <div className='flex items-center gap-2 rounded-md p-2 text-left text-sm'>
+                                <Skeleton className="h-4 w-4" />
+                                <Skeleton className="h-4 w-20" />
+                            </div>
+                        </div>
+                     </SidebarMenuItem>
+                  ))}
+                  <SidebarMenuItem>
+                    <div className='w-full'>
+                        <div className='flex items-center gap-2 rounded-md p-2 text-left text-sm'>
+                            <Skeleton className="h-4 w-4" />
+                            <Skeleton className="h-4 w-20" />
+                        </div>
+                    </div>
+                  </SidebarMenuItem>
+                 </>
+              ) : (
+                <>
+                  {menuItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <Link href={item.href} className="w-full">
+                        <SidebarMenuButton
+                          isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
+                          tooltip={{ children: item.label, side: 'right' }}
+                        >
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  ))}
+                </>
+              )}
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
