@@ -12,9 +12,9 @@ import { credential } from 'firebase-admin';
 
 // Define the input schema for the tool using Zod
 const MasterDocumentQuerySchema = z.object({
-  studentName: z.string().describe("The student's full name to search for."),
-  degreeName: z.string().describe("The name of the degree to search for."),
-  universityName: z.string().describe("The name of the university to search for."),
+  studentName: z.string().optional().describe("The student's full name to search for."),
+  degreeName: z.string().optional().describe("The name of the degree to search for."),
+  universityName: z.string().optional().describe("The name of the university to search for."),
 });
 
 // Initialize Firebase Admin SDK if not already initialized
@@ -32,7 +32,7 @@ const db = getFirestore(adminApp);
 export const findMasterDocument = ai.defineTool(
   {
     name: 'findMasterDocument',
-    description: 'Searches the Firestore database for a matching master educational document.',
+    description: 'Searches the Firestore database for a matching master educational document based on extracted fields.',
     inputSchema: MasterDocumentQuerySchema,
     outputSchema: z.object({
         found: z.boolean().describe('Whether a matching document was found.'),
@@ -44,16 +44,16 @@ export const findMasterDocument = ai.defineTool(
     
     const mastersRef = db.collection('document_masters');
     
-    // Build the query
+    // Build the query dynamically based on the input fields provided by the LLM
     let query: FirebaseFirestore.Query = mastersRef;
     if (input.studentName) {
-        query = query.where('studentName', '==', input.studentName);
+        query = query.where('documentData.studentName', '==', input.studentName);
     }
     if (input.degreeName) {
-        query = query.where('degreeName', '==', input.degreeName);
+        query = query.where('documentData.degreeName', '==', input.degreeName);
     }
     if (input.universityName) {
-        query = query.where('universityName', '==', input.universityName);
+        query = query.where('documentData.universityName', '==', input.universityName);
     }
 
     try {
