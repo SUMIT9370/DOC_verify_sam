@@ -131,7 +131,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
       </CardHeader>
       <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
-          <div className="aspect-w-1 aspect-h-1 relative">
+          <div className="aspect-square relative">
             <Image
               src={file.preview}
               alt={file.name}
