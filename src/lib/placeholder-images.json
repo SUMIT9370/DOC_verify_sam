@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "Abstract image representing document verification",
+      "imageUrl": "https://images.unsplash.com/photo-1618069416986-eb1677ba3cc9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxkb2N1bWVudCUyMHZlcmlmaWNhdGlvbnxlbnwwfHx8fDE3NjEyNzc5MTd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "document verification"
+    },
+    {
+      "id": "about1",
+      "description": "Digital India program logo concept",
+      "imageUrl": "https://images.unsplash.com/photo-1683560901896-52ed09af616f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxkaWdpdGFsJTIwaW5kaWF8ZW58MHx8fHwxNzYxMjc3OTE3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "digital india"
+    },
+    {
+      "id": "about2",
+      "description": "A person securely using a laptop, representing secure technology",
+      "imageUrl": "https://images.unsplash.com/photo-1632910110458-435eb54b8d9a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzZWN1cmUlMjB0ZWNobm9sb2d5fGVufDB8fHx8MTc2MTI3NzkxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "secure technology"
+    },
+    {
+      "id": "scheme1",
+      "description": "Image for a government scheme",
+      "imageUrl": "https://images.unsplash.com/photo-1590743036084-0abdd67eaf45?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxnb3Zlcm5tZW50JTIwc2NoZW1lfGVufDB8fHx8MTc2MTI3NzkxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "government scheme"
+    },
+    {
+      "id": "scheme2",
+      "description": "Image for a public service initiative",
+      "imageUrl": "https://images.unsplash.com/photo-1590826885939-4b1f843707ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwdWJsaWMlMjBzZXJ2aWNlfGVufDB8fHx8MTc2MTE2NDc3NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "public service"
+    },
+    {
+      "id": "scheme3",
+      "description": "Image for an infrastructure project",
+      "imageUrl": "https://images.unsplash.com/photo-1616662072452-9a7a6d41a029?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxpbmZyYXN0cnVjdHVyZSUyMHByb2plY3R8ZW58MHx8fHwxNzYxMjc3OTE3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "infrastructure project"
+    },
+    {
+      "id": "scheme4",
+      "description": "Image for an educational program",
+      "imageUrl": "https://images.unsplash.com/photo-1734542380868-0b60ea9f8742?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxlZHVjYXRpb24lMjBwcm9ncmFtfGVufDB8fHx8MTc2MTI3NzkxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "education program"
+    },
+    {
+      "id": "scheme5",
+      "description": "Image for a healthcare initiative",
+      "imageUrl": "https://images.unsplash.com/photo-1656009178152-1e4402050560?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxoZWFsdGhjYXJlJTIwaW5pdGlhdGl2ZXxlbnwwfHx8fDE3NjEyNzc5MTd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "healthcare initiative"
+    }
+  ]
 }
