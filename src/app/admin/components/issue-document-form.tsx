@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import { useState, useEffect, useMemo } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -123,42 +123,38 @@ const schemaMap: Record<string, z.ZodObject<any>> = {
 
 export function IssueDocumentForm() {
   const [selectedDocType, setSelectedDocType] = useState<DocumentTypeConfig | null>(null);
-  const [currentSchema, setCurrentSchema] = useState<z.ZodObject<any>>(baseSchema);
 
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const form = useForm({
-    resolver: zodResolver(currentSchema),
+    resolver: zodResolver(baseSchema),
     defaultValues: {
         documentType: '',
-    }
+    },
   });
-
+  
   const { isSubmitting } = form.formState;
   const watchedDocType = useWatch({ control: form.control, name: 'documentType' });
 
-  // Effect to update the form fields and schema when a new document type is selected
+  // Update form fields and validation when a document type is selected
   useEffect(() => {
-    const newDocType = documentTypes.find(doc => doc.value === watchedDocType);
-    const newSchema = newDocType ? schemaMap[newDocType.value] : baseSchema;
-    
-    // Reset the form but keep the selected documentType
-    const currentValues = form.getValues();
-    const newDefaultValues: Record<string, any> = { documentType: currentValues.documentType };
+    const newDocType = documentTypes.find(doc => doc.value === watchedDocType) || null;
+    setSelectedDocType(newDocType);
+
+    // Reset form values for the dynamic fields
+    const newDefaultValues: { [key: string]: any } = { documentType: watchedDocType };
     if (newDocType) {
         newDocType.fields.forEach(field => {
             newDefaultValues[field.name] = '';
         });
     }
-
     form.reset(newDefaultValues);
-
-    // This is a workaround to force react-hook-form to re-evaluate with the new schema
+    
+    // Update the resolver
+    form.trigger(); // This helps in re-validating the form
     // @ts-ignore
-    form.resolver = zodResolver(newSchema);
-    setSelectedDocType(newDocType || null);
-
+    form.resolver = zodResolver(newDocType ? schemaMap[newDocType.value] : baseSchema);
 
   }, [watchedDocType, form]);
 
