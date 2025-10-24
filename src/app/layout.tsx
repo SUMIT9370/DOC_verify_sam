@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   title: 'DuckVerify | Government of India',
   description:
     'Official Document Verification System of the Government of India to ensure authenticity and combat fraud.',
+  icons: {
+    icon: '/logo.png',
+  }
 };
 
 export default function RootLayout({

@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { GovIndiaLogo } from '@/components/icons/gov-india-logo';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
         <div
           className="flex items-center justify-center gap-2 mb-6"
         >
-          <GovIndiaLogo className="h-10 w-10 text-primary" />
+          <Image src="/logo.png" alt="DuckVerify Logo" width={40} height={40} />
           <span className="text-2xl font-bold font-headline">DuckVerify Admin</span>
         </div>
         <Card className="shadow-2xl">

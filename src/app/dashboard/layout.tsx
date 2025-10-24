@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -25,7 +26,6 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { GovIndiaLogo } from '@/components/icons/gov-india-logo';
 import { useAuth, useUser } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import AuthGuard from '@/components/auth-guard';
@@ -65,7 +65,7 @@ export default function DashboardLayout({
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2">
-              <GovIndiaLogo className="h-8 w-8 shrink-0 text-sidebar-primary" />
+              <Image src="/logo.png" alt="DuckVerify Logo" width={32} height={32} />
               <div className="flex flex-col">
                 <h2 className="text-lg font-semibold font-headline text-sidebar-foreground">
                   DuckVerify

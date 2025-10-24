@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GovIndiaLogo } from './icons/gov-india-logo';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
@@ -8,7 +8,7 @@ export default function Footer() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div className="space-y-4">
                     <Link href="/" className="flex items-center gap-2" prefetch={false}>
-                        <GovIndiaLogo className="h-8 w-8 text-primary" />
+                        <Image src="/logo.png" alt="DuckVerify Logo" width={32} height={32} />
                         <span className="text-xl font-bold font-headline">DuckVerify</span>
                     </Link>
                     <p className="text-sm text-muted-foreground">

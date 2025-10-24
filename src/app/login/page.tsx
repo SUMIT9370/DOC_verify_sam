@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Card,
   CardContent,
@@ -7,7 +8,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { LoginForm } from './components/login-form';
-import { GovIndiaLogo } from '@/components/icons/gov-india-logo';
 
 export default function LoginPage() {
   return (
@@ -18,7 +18,7 @@ export default function LoginPage() {
           className="flex items-center justify-center gap-2 mb-6"
           prefetch={false}
         >
-          <GovIndiaLogo className="h-10 w-10 text-primary" />
+          <Image src="/logo.png" alt="DuckVerify Logo" width={40} height={40} />
           <span className="text-2xl font-bold font-headline">DuckVerify</span>
         </Link>
         <Card className="shadow-2xl">
