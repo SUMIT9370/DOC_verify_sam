@@ -7,7 +7,7 @@ import { MasterUploader } from "./components/master-uploader";
 import { IssueDocumentForm } from "./components/issue-document-form";
 import { Button } from '@/components/ui/button';
 import { BookUser, FileCheck2, FileUp } from 'lucide-react';
-import { MasterDocumentList } from './components/master-document-list';
+// import { MasterDocumentList } from './components/master-document-list'; // Temporarily removed
 
 export default function AdminPage() {
     const router = useRouter();
@@ -95,7 +95,7 @@ export default function AdminPage() {
                     </Card>
                 </div>
 
-                <MasterDocumentList />
+                {/* <MasterDocumentList /> */}
 
             </div>
         </div>
