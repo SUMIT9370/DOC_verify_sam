@@ -70,7 +70,8 @@ export function MasterUploader() {
       // Save to Firestore, including the data URI of the image
       const mastersCollection = collection(firestore, 'document_masters');
       const dataToSave = {
-        ...extractedData,
+        documentType: extractedData.documentType,
+        documentData: extractedData.documentData,
         documentDataUri: dataUri 
       };
 
