@@ -20,9 +20,9 @@ import {
 import type { VerifyDocumentOutput } from '@/ai/flows/document-verification-ai';
 import { verifyDocument } from '@/ai/flows/document-verification-ai';
 import { cn } from '@/lib/utils';
-import { useAuth, useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc } from 'firebase/firestore';
 
 interface VerificationProgressProps {
   file: File & { preview: string };
@@ -115,7 +115,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
         
         // 5. Save result to Firestore
         const historyCollection = collection(firestore, 'users', currentUser.uid, 'verification_history');
-        await addDocumentNonBlocking(historyCollection, {
+        await addDoc(historyCollection, {
             documentName: file.name,
             documentUrl: downloadURL,
             isAuthentic: aiResult.isAuthentic,
@@ -126,9 +126,9 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
         setProgress(100);
         setSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
 
-      } catch (e) {
+      } catch (e: any) {
         console.error('Verification failed:', e);
-        setError('An unexpected error occurred during verification.');
+        setError(e.message || 'An unexpected error occurred during verification.');
         setSteps(prev => prev.map(step => (step.status === 'running' ? { ...step, status: 'failed' } : step)));
       } finally {
         setIsVerifying(false);
@@ -157,14 +157,20 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
     if (error) {
         return <Badge variant="destructive" className="text-lg py-1 px-4"><AlertTriangle className="mr-2 h-5 w-5"/>Error</Badge>;
     }
-    if (!result) {
+    if (!result && isVerifying) {
         return <Badge variant="secondary" className="text-lg py-1 px-4"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Verifying</Badge>;
     }
-    if (result.isAuthentic) {
+    if (result?.isAuthentic) {
         return <Badge className="text-lg py-1 px-4 bg-green-600 hover:bg-green-700"><CheckCircle2 className="mr-2 h-5 w-5"/>Authentic</Badge>;
-    } else {
+    } 
+    if (result && !result.isAuthentic) {
         return <Badge variant="destructive" className="text-lg py-1 px-4"><XCircle className="mr-2 h-5 w-5"/>Fake Detected</Badge>;
     }
+    // Final state if not verifying and no result (could be initial or post-error)
+    if (!isVerifying && !result) {
+      return <Badge variant="destructive" className="text-lg py-1 px-4"><XCircle className="mr-2 h-5 w-5" /> Failed</Badge>;
+    }
+    return <Badge variant="secondary" className="text-lg py-1 px-4"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Verifying</Badge>;
   }
 
   return (

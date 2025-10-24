@@ -23,11 +23,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { useAuth, useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignUp, initiateSignInWithRedirect } from '@/firebase/non-blocking-login';
 import { GithubAuthProvider, GoogleAuthProvider, User } from 'firebase/auth';
 import { useEffect } from 'react';
-import { doc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -78,10 +78,7 @@ export function SignUpForm() {
   });
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      // Check if user profile already exists
-      const userRef = doc(firestore, 'users', user.uid);
-      
+    if (!isUserLoading && user && firestore) {
       const createProfile = async (firebaseUser: User) => {
         const userProfile = {
             id: firebaseUser.uid,
@@ -92,10 +89,10 @@ export function SignUpForm() {
             userType: form.getValues('userType'),
         };
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        setDocumentNonBlocking(userDocRef, userProfile, { merge: true });
+        await setDoc(userDocRef, userProfile, { merge: true });
+        router.push('/dashboard');
       }
       createProfile(user);
-      router.push('/dashboard');
     }
   }, [user, isUserLoading, router, firestore, form]);
 

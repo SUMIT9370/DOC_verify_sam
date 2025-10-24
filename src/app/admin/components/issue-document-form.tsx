@@ -13,8 +13,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -53,7 +53,7 @@ export function IssueDocumentForm() {
 
     try {
       const mastersCollection = collection(firestore, 'document_masters');
-      await addDocumentNonBlocking(mastersCollection, values);
+      await addDoc(mastersCollection, values);
 
       toast({
         title: 'Success!',

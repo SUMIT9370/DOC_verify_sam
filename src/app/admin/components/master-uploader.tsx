@@ -4,9 +4,9 @@ import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, File as FileIcon, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { extractDocumentData, type ExtractDocumentDataOutput } from '@/ai/flows/extract-document-data';
-import { collection } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 type FileWithPreview = File & {
@@ -61,7 +61,7 @@ export function MasterUploader() {
 
         // Save to Firestore
         const mastersCollection = collection(firestore, 'document_masters');
-        await addDocumentNonBlocking(mastersCollection, extractedData);
+        await addDoc(mastersCollection, extractedData);
 
         toast({
           title: 'Success!',
@@ -162,4 +162,3 @@ export function MasterUploader() {
     </div>
   );
 }
-    
