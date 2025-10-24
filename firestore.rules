@@ -1,27 +1,38 @@
 /**
- * @description This ruleset enforces a strict user-ownership model for user data, restricts master document access to admins, and protects admin dashboard information.
- * @dataStructure
- *  - /users/{userId}: Stores individual user profiles.
- *  - /users/{userId}/verification_history/{historyId}: Stores verification history entries for each user.
- *  - /document_masters/{masterId}: Stores educational document templates (admin-only access).
- *  - /admin_dashboards/{dashboardId}: Stores admin-specific dashboard data (admin-only access).
- * @keySecurityDecisions
- *  - User listing is explicitly denied.
- *  - Ambiguous or unspecified relationships default to strict owner-only access.
- *  - Public read access is not granted to any collection containing private user data.
+ * @fileOverview Firestore Security Rules for DocVerify.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user profiles and their associated verification histories.
+ * Administrative access is granted to specific collections based on the `isAdmin` field in the user document.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles, with access restricted to the owning user.
+ * - /users/{userId}/verification_history/{historyId}: Stores verification history for each user, accessible only by the user.
+ * - /document_masters/{masterId}: Stores master educational document templates, accessible only by admins.
+ * - /admin_dashboards/{dashboardId}: Stores admin dashboard data, accessible only by admins.
+ *
+ * Key Security Decisions:
+ * - User listing is disallowed.
+ * - All writes are protected by authorization checks.
+ * - The `isAdmin` field on the user document determines administrative privileges.
+ *
+ * Denormalization for Authorization:
+ * - The `isAdmin` field is denormalized onto the user document to enable efficient admin role checks without additional reads.
+ *
+ * Structural Segregation:
+ * - Verification histories are stored as a subcollection of user documents, ensuring clear ownership and access control.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents. Only the authenticated user can read or modify their own profile.
+     * @description Secure user profiles. Only the owner can read or write their own profile.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user 'user_abc' can create their own profile at /users/user_abc.
-     * @allow (get, list, update, delete) - Authenticated user 'user_abc' can read, update, and delete their own profile at /users/user_abc.
-     * @deny (create) - Authenticated user 'user_xyz' cannot create a profile at /users/user_abc.
-     * @deny (get, list, update, delete) - Authenticated user 'user_xyz' cannot read, update, or delete the profile at /users/user_abc.
-     * @principle Enforces user-ownership for profile data and enables self-creation.
+     * @allow (create) - User with matching UID can create their profile.
+     * @allow (get, list, update, delete) - User with matching UID can read, update, or delete their profile.
+     * @deny (create, get, list, update, delete) - Any other user cannot access this profile.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -29,29 +40,27 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
-
-      // Read permissions:
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-
-      // Write permissions:
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == request.auth.uid;
-      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.uid == resource.data.uid;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
 
       function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
       }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Manages access to verification history entries for a specific user. Only the authenticated user can manage their own history.
+     * @description Secure verification history for a user. Only the owner can read or write their own history.
      * @path /users/{userId}/verification_history/{historyId}
-     * @allow (create, get, list, update, delete) - Authenticated user 'user_abc' can create, read, update, and delete their own history entries under /users/user_abc/verification_history/{historyId}.
-     * @deny (create, get, list, update, delete) - Authenticated user 'user_xyz' cannot access the history entries under /users/user_abc/verification_history/{historyId}.
-     * @principle Enforces strict user-ownership for all history entries.
+     * @allow (create) - User can create a history record under their own profile.
+     * @allow (get, list, update, delete) - User can read, update, or delete their own history records.
+     * @deny (create, get, list, update, delete) - Any other user cannot access this history.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/verification_history/{historyId} {
       function isSignedIn() {
@@ -59,25 +68,27 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
-      // Read permissions:
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
+       function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
 
-      // Write permissions:
-      allow create: if isSignedIn(); // No owner validation, allows flexible data shapes in this prototype
-      allow update: if isSignedIn(); // No owner validation, allows flexible data shapes in this prototype
-      allow delete: if isSignedIn() && resource != null;
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to educational document master templates. Only authenticated admins can create, read, update, or delete these templates.
+     * @description Secure educational document masters. Only admins can read or write these documents.
      * @path /document_masters/{masterId}
-     * @allow (create, get, list, update, delete) - Authenticated admin users (isAdmin == true) can perform any operation on document master templates.
-     * @deny (create, get, list, update, delete) - Authenticated non-admin users (isAdmin == false) cannot access document master templates.
-     * @principle Enforces role-based access control, restricting template management to authorized personnel.
+     * @allow (create, update, delete) - User must be an admin to create, update, or delete master documents.
+     * @allow (get, list) - User must be an admin to get or list master documents.
+     * @deny (create, get, list, update, delete) - Non-admin users cannot access this collection.
+     * @principle Restricts access to admins based on the `isAdmin` field in their user profile.
      */
     match /document_masters/{masterId} {
       function isSignedIn() {
@@ -85,37 +96,38 @@ service cloud.firestore {
       }
 
       function isAdmin() {
-          return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
       }
 
-      // Read permissions:
-      allow get, list: if isAdmin();
-
-      // Write permissions:
-      allow create, update, delete: if isAdmin();
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
     }
 
     /**
-     * @description Restricts access to the admin dashboard data. Only authenticated admin users can read and modify this information.
+     * @description Secure admin dashboard data. Only admins can read or write these documents.
      * @path /admin_dashboards/{dashboardId}
-     * @allow (create, get, list, update, delete) - Authenticated admin users (isAdmin == true) can manage the admin dashboard data.
-     * @deny (create, get, list, update, delete) - Authenticated non-admin users (isAdmin == false) cannot access admin dashboard data.
-     * @principle Enforces role-based access control for sensitive administrative data.
+     * @allow (create, update, delete) - User must be an admin to create, update, or delete dashboard data.
+     * @allow (get, list) - User must be an admin to get or list dashboard data.
+     * @deny (create, get, list, update, delete) - Non-admin users cannot access this collection.
+     * @principle Restricts access to admins based on the `isAdmin` field in their user profile.
      */
     match /admin_dashboards/{dashboardId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
+       function isSignedIn() {
+        return request.auth != null;
+      }
 
-        function isAdmin() {
-            return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-        }
+      function isAdmin() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      }
 
-        // Read permissions:
-        allow get, list: if isAdmin();
-
-        // Write permissions:
-        allow create, update, delete: if isAdmin();
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
     }
   }
 }
