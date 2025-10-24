@@ -66,7 +66,7 @@ export default function Home() {
                     Authentic, Digital, Verified.
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    DuckVerify is India&apos;s secure platform for digital document verification. Your documents, anytime, anywhere.
+                    DocVerify is India&apos;s secure platform for digital document verification. Your documents, anytime, anywhere.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -130,10 +130,10 @@ export default function Home() {
           <div className="container grid items-center gap-6 px-4 md:px-6 lg:grid-cols-2 lg:gap-10">
             <div className="space-y-2">
               <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight font-headline">
-                About DuckVerify
+                About DocVerify
               </h2>
               <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                DuckVerify is a flagship initiative under the Digital India program, designed to combat document fraud in the education and employment sectors. By providing a unified, secure, and technologically advanced platform, we aim to uphold the integrity of credentials issued within the country.
+                DocVerify is a flagship initiative under the Digital India program, designed to combat document fraud in the education and employment sectors. By providing a unified, secure, and technologically advanced platform, we aim to uphold the integrity of credentials issued within the country.
               </p>
             </div>
             <div className="flex space-x-4 lg:justify-end">

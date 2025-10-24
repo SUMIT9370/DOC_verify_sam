@@ -19,7 +19,7 @@ const sourceCodePro = Source_Code_Pro({
 });
 
 export const metadata: Metadata = {
-  title: 'DuckVerify | Government of India',
+  title: 'DocVerify | Government of India',
   description:
     'Official Document Verification System of the Government of India to ensure authenticity and combat fraud.',
   icons: {
