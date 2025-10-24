@@ -29,7 +29,6 @@ import { GovIndiaLogo } from '@/components/icons/gov-india-logo';
 import { useAuth, useUser } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import AuthGuard from '@/components/auth-guard';
-import { useAdmin } from '@/hooks/use-admin';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardLayout({
@@ -41,17 +40,12 @@ export default function DashboardLayout({
   const auth = useAuth();
   const { user } = useUser();
   const router = useRouter();
-  const { isAdmin, isAdminLoading } = useAdmin();
 
   const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/verify', label: 'Verify Documents', icon: FileScan },
     { href: '/dashboard/history', label: 'History', icon: History },
   ];
-
-  if (isAdmin) {
-    menuItems.push({ href: '/admin', label: 'Admin', icon: Shield });
-  }
 
   const handleLogout = async () => {
     if (auth) {
@@ -81,44 +75,21 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {isAdminLoading ? (
-                 <>
-                  {menuItems.map((item) => (
-                     <SidebarMenuItem key={item.href}>
-                        <div className='w-full'>
-                            <div className='flex items-center gap-2 rounded-md p-2 text-left text-sm'>
-                                <Skeleton className="h-4 w-4" />
-                                <Skeleton className="h-4 w-20" />
-                            </div>
-                        </div>
-                     </SidebarMenuItem>
-                  ))}
-                  <SidebarMenuItem>
-                    <div className='w-full'>
-                        <div className='flex items-center gap-2 rounded-md p-2 text-left text-sm'>
-                            <Skeleton className="h-4 w-4" />
-                            <Skeleton className="h-4 w-20" />
-                        </div>
-                    </div>
+              <>
+                {menuItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <Link href={item.href} className="w-full">
+                      <SidebarMenuButton
+                        isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
+                        tooltip={{ children: item.label, side: 'right' }}
+                      >
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </Link>
                   </SidebarMenuItem>
-                 </>
-              ) : (
-                <>
-                  {menuItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <Link href={item.href} className="w-full">
-                        <SidebarMenuButton
-                          isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
-                          tooltip={{ children: item.label, side: 'right' }}
-                        >
-                          <item.icon />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                  ))}
-                </>
-              )}
+                ))}
+              </>
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
