@@ -16,6 +16,10 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { useAuth, useUser } from '@/firebase';
+import { initiateEmailSignIn, initiateSignInWithRedirect } from '@/firebase/non-blocking-login';
+import { GithubAuthProvider, GoogleAuthProvider } from 'firebase/auth';
+import { useEffect } from 'react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -47,6 +51,8 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export function LoginForm() {
   const router = useRouter();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,17 +62,35 @@ export function LoginForm() {
     },
   });
 
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, isUserLoading, router]);
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Mock login: redirect to dashboard
-    router.push('/dashboard');
+    initiateEmailSignIn(auth, values.email, values.password);
+  }
+
+  const handleGoogleSignIn = () => {
+    const googleProvider = new GoogleAuthProvider();
+    initiateSignInWithRedirect(auth, googleProvider);
+  };
+
+  const handleGitHubSignIn = () => {
+    const githubProvider = new GithubAuthProvider();
+    initiateSignInWithRedirect(auth, githubProvider);
+  };
+  
+  if (isUserLoading || user) {
+    return <div className="flex justify-center items-center p-8">Loading...</div>;
   }
 
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline"><GoogleIcon className="mr-2 h-4 w-4" /> Google</Button>
-        <Button variant="outline"><GitHubIcon className="mr-2 h-4 w-4" /> GitHub</Button>
+        <Button variant="outline" onClick={handleGoogleSignIn}><GoogleIcon className="mr-2 h-4 w-4" /> Google</Button>
+        <Button variant="outline" onClick={handleGitHubSignIn}><GitHubIcon className="mr-2 h-4 w-4" /> GitHub</Button>
       </div>
       <Separator className="my-4" />
       <Form {...form}>

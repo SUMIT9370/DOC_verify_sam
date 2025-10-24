@@ -23,6 +23,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { useAuth, useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { initiateEmailSignUp, initiateSignInWithRedirect } from '@/firebase/non-blocking-login';
+import { GithubAuthProvider, GoogleAuthProvider, User } from 'firebase/auth';
+import { useEffect } from 'react';
+import { doc } from 'firebase/firestore';
+
 
 const formSchema = z.object({
   userType: z.enum(['student', 'university', 'company']),
@@ -30,6 +36,7 @@ const formSchema = z.object({
   password: z
     .string()
     .min(8, { message: 'Password must be at least 8 characters.' }),
+  displayName: z.string().min(1, { message: 'Display name is required.' }),
 });
 
 function GitHubIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -41,21 +48,24 @@ function GitHubIcon(props: React.SVGProps<SVGSVGElement>) {
     );
   }
   
-  function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
-      return (
-          <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 18h.01" />
-              <path d="M16 12a4 4 0 1 0-8 0" />
-              <path d="M12 22a10 10 0 0 0 10-10h-5" />
-              <path d="M12 2a10 10 0 0 0-10 10h5" />
-              <path d="M12 12a6 6 0 0 0-6 6" />
-          </svg>
-      )
-  }
+function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 18h.01" />
+            <path d="M16 12a4 4 0 1 0-8 0" />
+            <path d="M12 22a10 10 0 0 0 10-10h-5" />
+            <path d="M12 2a10 10 0 0 0-10 10h5" />
+            <path d="M12 12a6 6 0 0 0-6 6" />
+        </svg>
+    )
+}
 
 export function SignUpForm() {
   const router = useRouter();
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -63,20 +73,55 @@ export function SignUpForm() {
       userType: 'student',
       email: '',
       password: '',
+      displayName: '',
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Mock signup: redirect to dashboard
-    router.push('/dashboard');
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      // Check if user profile already exists
+      const userRef = doc(firestore, 'users', user.uid);
+      
+      const createProfile = async (firebaseUser: User) => {
+        const userProfile = {
+            id: firebaseUser.uid,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || form.getValues('displayName'),
+            photoURL: firebaseUser.photoURL,
+            userType: form.getValues('userType'),
+        };
+        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        setDocumentNonBlocking(userDocRef, userProfile, { merge: true });
+      }
+      createProfile(user);
+      router.push('/dashboard');
+    }
+  }, [user, isUserLoading, router, firestore, form]);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    await initiateEmailSignUp(auth, values.email, values.password);
+  }
+
+  const handleGoogleSignIn = () => {
+    const googleProvider = new GoogleAuthProvider();
+    initiateSignInWithRedirect(auth, googleProvider);
+  };
+
+  const handleGitHubSignIn = () => {
+    const githubProvider = new GithubAuthProvider();
+    initiateSignInWithRedirect(auth, githubProvider);
+  };
+
+  if (isUserLoading || user) {
+    return <div className="flex justify-center items-center p-8">Loading...</div>;
   }
 
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline"><GoogleIcon className="mr-2 h-4 w-4" /> Google</Button>
-        <Button variant="outline"><GitHubIcon className="mr-2 h-4 w-4" /> GitHub</Button>
+        <Button variant="outline" onClick={handleGoogleSignIn}><GoogleIcon className="mr-2 h-4 w-4" /> Google</Button>
+        <Button variant="outline" onClick={handleGitHubSignIn}><GitHubIcon className="mr-2 h-4 w-4" /> GitHub</Button>
       </div>
       <Separator className="my-4" />
       <Form {...form}>
@@ -106,7 +151,19 @@ export function SignUpForm() {
               </FormItem>
             )}
           />
-
+           <FormField
+            control={form.control}
+            name="displayName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="email"
