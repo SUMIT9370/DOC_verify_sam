@@ -12,14 +12,20 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Inbox, BookCopy } from 'lucide-react';
+import { Inbox } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog"
 
 type DocumentMaster = {
   id: string;
-  studentName: string;
-  universityName: string;
-  degreeName: string;
-  dateOfIssue: string;
+  documentType: string;
+  documentData: Record<string, any>;
 };
 
 export function MasterDocumentList() {
@@ -29,7 +35,7 @@ export function MasterDocumentList() {
     if (!firestore) return null;
     return query(
       collection(firestore, 'document_masters'),
-      orderBy('studentName', 'asc')
+      orderBy('documentType', 'asc')
     );
   }, [firestore]);
 
@@ -40,7 +46,7 @@ export function MasterDocumentList() {
       <CardHeader>
         <CardTitle>Issued Document Masters</CardTitle>
         <CardDescription>
-          A list of all master educational documents currently in the database.
+          A list of all master documents currently in the database. Click a row to see details.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -48,10 +54,9 @@ export function MasterDocumentList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student Name</TableHead>
-                <TableHead>University</TableHead>
-                <TableHead>Degree</TableHead>
-                <TableHead className="text-right">Date of Issue</TableHead>
+                <TableHead>Document Type</TableHead>
+                <TableHead>Primary Holder</TableHead>
+                <TableHead className="text-right">Extracted Fields</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -59,17 +64,33 @@ export function MasterDocumentList() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                 </TableRow>
               ))}
               {!isLoading && masters && masters.map((doc) => (
-                <TableRow key={doc.id}>
-                  <TableCell className="font-medium">{doc.studentName}</TableCell>
-                  <TableCell>{doc.universityName}</TableCell>
-                  <TableCell>{doc.degreeName}</TableCell>
-                  <TableCell className="text-right">{doc.dateOfIssue}</TableCell>
-                </TableRow>
+                <Dialog key={doc.id}>
+                  <DialogTrigger asChild>
+                    <TableRow className="cursor-pointer">
+                      <TableCell className="font-medium">{doc.documentType}</TableCell>
+                      <TableCell>{doc.documentData?.studentName || doc.documentData?.employeeName || 'N/A'}</TableCell>
+                      <TableCell className="text-right">{Object.keys(doc.documentData).length}</TableCell>
+                    </TableRow>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{doc.documentType}</DialogTitle>
+                      <DialogDescription>
+                        ID: {doc.id}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4 space-y-2">
+                        <h4 className="font-semibold">Extracted Data</h4>
+                        <pre className="p-4 bg-muted rounded-md overflow-x-auto text-sm">
+                            {JSON.stringify(doc.documentData, null, 2)}
+                        </pre>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ))}
             </TableBody>
           </Table>
@@ -78,7 +99,7 @@ export function MasterDocumentList() {
               <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No Masters Found</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Issue a new document master using one of the forms above.
+                Issue a new document master using one of the forms on this page.
               </p>
             </div>
           )}

@@ -90,28 +90,19 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "EducationalDocument",
       "type": "object",
-      "description": "Represents an educational document master template.",
+      "description": "Represents an educational document master template with a flexible data structure.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the document master."
         },
-        "studentName": {
+        "documentType": {
           "type": "string",
-          "description": "Full name of the student."
+          "description": "The type of document as identified by the AI (e.g. 'Degree Certificate', 'Income Certificate')."
         },
-        "universityName": {
-          "type": "string",
-          "description": "Name of the issuing university or institution."
-        },
-        "degreeName": {
-          "type": "string",
-          "description": "Name of the degree or certificate."
-        },
-        "dateOfIssue": {
-          "type": "string",
-          "description": "Date the document was issued.",
-          "format": "date"
+        "documentData": {
+          "type": "object",
+          "description": "A flexible object to store the key-value pairs extracted by the AI, which will vary based on the document type."
         },
         "extractedText": {
           "type": "string",
@@ -123,10 +114,8 @@
         }
       },
       "required": [
-        "studentName",
-        "universityName",
-        "degreeName",
-        "dateOfIssue"
+        "documentType",
+        "documentData"
       ]
     },
     "VerificationCheck": {
@@ -308,7 +297,7 @@
           "schema": {
             "$ref": "#/backend/entities/EducationalDocument"
           },
-          "description": "Stores master educational document templates uploaded by admins. Access is restricted to admins.",
+          "description": "Stores master document templates uploaded by admins. Access is restricted to admins.",
           "params": [
             {
               "name": "masterId",
@@ -337,5 +326,3 @@
     "reasoning": "The Firestore structure is designed to support DocVerify's document verification process for students, universities, and companies, focusing on secure authentication and efficient data management. It incorporates denormalization to ensure authorization independence and facilitate atomic operations. The structure utilizes path-based ownership and membership maps for access control.\n\n**Authorization Independence:**\n\n*   User documents are stored directly under `/users/{userId}`, enabling straightforward, path-based access control.\n*   Verification history is stored under `/users/{userId}/verification_history/{historyId}`. This path-based ownership ensures a user can only access their own history.\n*   Master documents are stored in `/document_masters/{masterId}`. This top-level collection is secured by rules that only allow admin access.\n\n**QAPs (Rules are not Filters):**\n\n*   Data segregation: Each user type (student, university, company) has its own dedicated space under `/users/{userId}`, ensuring that different user types do not share the same collections and associated security rules. This segregation is also applied at the subcollection level (e.g., documents, verification checks).\n\n**Admin Dashboard:**\n\n*   AdminDashboard documents are stored in the `/admin_dashboards/{dashboardId}` collection.  Access to this collection is restricted to users with admin privileges, verified by checking the `isAdmin` flag on their user profile."
   }
 }
-
-    
