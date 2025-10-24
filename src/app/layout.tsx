@@ -2,12 +2,25 @@ import type { Metadata } from 'next';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { PT_Sans, Source_Code_Pro } from 'next/font/google';
 import './globals.css';
 
+const ptSans = PT_Sans({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-body',
+});
+
+const sourceCodePro = Source_Code_Pro({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-code',
+});
+
 export const metadata: Metadata = {
-  title: 'DuckVerify - Government of India',
+  title: 'DuckVerify | Government of India',
   description:
-    'Official Document Verification System for the Government of India.',
+    'Official Document Verification System of the Government of India to ensure authenticity and combat fraud.',
 };
 
 export default function RootLayout({
@@ -17,19 +30,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Source+Code+Pro:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className={cn('min-h-screen bg-background font-body antialiased')}>
+      <body
+        className={cn(
+          'min-h-screen bg-background font-body antialiased',
+          ptSans.variable,
+          sourceCodePro.variable
+        )}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
