@@ -95,8 +95,6 @@ export default function AdminPage() {
                     </Card>
                 </div>
 
-                <MasterDocumentList />
-
             </div>
         </div>
     );
