@@ -20,7 +20,7 @@ import {
 import type { VerifyDocumentOutput } from '@/ai/flows/document-verification-ai';
 import { verifyDocument } from '@/ai/flows/document-verification-ai';
 import { cn } from '@/lib/utils';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, serverTimestamp, addDoc } from 'firebase/firestore';
 
@@ -51,11 +51,11 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(autoStart);
   
-  const auth = useAuth();
+  const { user } = useUser();
   const firestore = useFirestore();
 
   useEffect(() => {
-    if (!autoStart || !auth?.currentUser || !firestore) return;
+    if (!autoStart || !user || !firestore) return;
 
     const fileToDataUri = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -67,8 +67,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
     };
 
     const runVerification = async () => {
-      const { currentUser } = auth;
-      if (!currentUser) {
+      if (!user) {
           setError("User is not authenticated.");
           setIsVerifying(false);
           return;
@@ -84,7 +83,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
         setProgress(1 * (100 / (initialSteps.length + 1)));
 
         const storage = getStorage();
-        const storageRef = ref(storage, `user_uploads/${currentUser.uid}/${Date.now()}_${file.name}`);
+        const storageRef = ref(storage, `user_uploads/${user.uid}/${Date.now()}_${file.name}`);
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
         
@@ -114,7 +113,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
         setResult(aiResult);
         
         // 5. Save result to Firestore
-        const historyCollection = collection(firestore, 'users', currentUser.uid, 'verification_history');
+        const historyCollection = collection(firestore, 'users', user.uid, 'verification_history');
         await addDoc(historyCollection, {
             documentName: file.name,
             documentUrl: downloadURL,
@@ -137,7 +136,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
 
     runVerification();
 
-  }, [autoStart, file, auth, firestore]);
+  }, [autoStart, file, user, firestore]);
 
   const getStepIcon = (status: VerificationStep['status']) => {
     switch (status) {
