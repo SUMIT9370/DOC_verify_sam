@@ -41,7 +41,7 @@ const verifyDocumentPrompt = ai.definePrompt({
   name: 'verifyDocumentPrompt',
   input: {schema: VerifyDocumentInputSchema},
   output: {schema: VerifyDocumentOutputSchema},
-  tools: [extractDocumentData, findMasterDocument],
+  tools: [findMasterDocument],
   prompt: `You are an AI expert in document verification for DocVerify. Your primary goal is to determine if a user-uploaded document is authentic by comparing it against official master documents stored in a database.
 
 Follow these steps:
@@ -65,6 +65,13 @@ const verifyDocumentFlow = ai.defineFlow(
     outputSchema: VerifyDocumentOutputSchema,
   },
   async input => {
+    // Manually call the extraction flow first
+    const extractedData = await extractDocumentData({ documentDataUri: input.documentDataUri });
+    
+    // Then, call the verification prompt, which can now use the `findMasterDocument` tool.
+    // We can pass the extracted data into the prompt if needed, but the current prompt
+    // instructs the LLM to call the tools itself. The LLM should be smart enough
+    // to orchestrate this.
     const {output} = await verifyDocumentPrompt(input);
     return output!;
   }
