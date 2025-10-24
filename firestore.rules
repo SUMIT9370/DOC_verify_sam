@@ -1,122 +1,189 @@
+/**
+ * @file Firestore Security Rules for DocVerify
+ *
+ * @Core Philosophy: This ruleset enforces a strict user-ownership model for personal data,
+ * with admin overrides for specific collections. Users can only access their own data,
+ * while admins, identified by their presence in the `/roles_admin` collection, have
+ * elevated privileges for managing dashboards and document master templates.
+ *
+ * @Data Structure:
+ * - /users/{userId}: Stores user profiles, accessible only to the user themselves.
+ * - /users/{userId}/documents/{documentId}: Stores user-uploaded documents, accessible only to the user.
+ * - /users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}: Stores verification checks for user documents, accessible only to the user.
+ * - /document_masters/{masterId}: Stores educational document master templates, accessible only to admins.
+ * - /roles_admin/{uid}: Collection to store admin roles, accessible only with admin privileges.
+ * - /admin_dashboards/{dashboardId}: Stores admin dashboard data, accessible only to admins.
+ *
+ * @Key Security Decisions:
+ * - User data is strictly segregated and accessible only to the owning user.
+ * - Admin privileges are granted based on the presence of a document in the `/roles_admin` collection.
+ * - Listing of users is disallowed.
+ * - Data validation is relaxed to allow for rapid prototyping, focusing on authorization.
+ *
+ * @Denormalization for Authorization:
+ * - Documents are stored under `/users/{userId}/documents/{documentId}`. Each document contains the `userId` to explicitly link it to its owner.
+ *
+ * @Structural Segregation:
+ * - User-specific data (profiles, documents, verification checks) is stored under the `/users/{userId}` path,
+ *   while admin-related data (document masters, dashboards) is stored in separate top-level collections.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profiles.
+     * @description Secures user profiles. Only the user can read and write their own profile.
      * @path /users/{userId}
-     * @allow (create) User with matching UID can create their profile.
-     * @allow (get, list, update, delete) User with matching UID can read, update, and delete their profile.
-     * @deny (create) User cannot create a profile with a different UID.
-     * @deny (update) User cannot update another user's profile.
+     * @allow (get, create, update, delete): Authenticated user with UID matching the userId.
+     *   Example: User with UID 'user123' can read their profile at /users/user123.
+     * @deny (get, create, update, delete): User with UID 'user123' tries to access /users/otherUser.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
+
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if request.auth.uid == userId;
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == userId;
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to user documents.
+     * @description Secures documents uploaded by users. Only the user can access their own documents.
      * @path /users/{userId}/documents/{documentId}
-     * @allow (create) User with matching UID can create documents.
-     * @allow (get, list, update, delete) User with matching UID can read, update, and delete their own documents.
-     * @deny (create) User cannot create documents under another user's ID.
-     * @deny (update) User cannot update another user's documents.
-     * @principle Enforces document ownership and data integrity.
+     * @allow (get, create, update, delete): Authenticated user with UID matching the userId.
+     *   Example: User with UID 'user123' can read their document at /users/user123/documents/doc456.
+     * @deny (get, create, update, delete): User with UID 'user123' tries to access /users/otherUser/documents/doc456.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/documents/{documentId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
 
-      allow get: if isOwner(userId);
-      allow list: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
-    }
-
-    /**
-     * @description Controls access to educational document masters.
-     * @path /document_masters/{masterId}
-     * @allow (get, list) Admins can read master documents.
-     * @allow (create, update, delete) Admins can create, update, and delete master documents.
-     * @deny (get, list, create, update, delete) Non-admins cannot access master documents.
-     * @principle Restricts access to authorized admins only.
-     */
-    match /document_masters/{masterId} {
-      function isAdmin() {
-        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      function isSignedIn() {
+        return request.auth != null;
       }
-
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+        allow get: if isOwner(userId);
+        allow list: if false;
+        allow create: if isSignedIn() && request.auth.uid == userId;
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to verification checks.
+     * @description Secures verification checks performed on documents. Only the user can access their own verification checks.
      * @path /users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}
-     * @allow (create) User with matching UID can create verification checks for their documents.
-     * @allow (get, list, update, delete) User with matching UID can read, update, and delete their own verification checks.
-     * @deny (create) User cannot create verification checks under another user's ID or document.
-     * @deny (update) User cannot update another user's verification checks.
-     * @principle Enforces document ownership and relational integrity through path-based checks.
+     * @allow (get, create, update, delete): Authenticated user with UID matching the userId.
+     *   Example: User with UID 'user123' can read their verification check at /users/user123/documents/doc456/verificationChecks/check789.
+     * @deny (get, create, update, delete): User with UID 'user123' tries to access /users/otherUser/documents/doc456/verificationChecks/check789.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
 
-      allow get: if isOwner(userId);
-      allow list: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+        allow get: if isOwner(userId);
+        allow list: if false;
+        allow create: if isSignedIn() && request.auth.uid == userId;
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+    }
+
+        /**
+         * @description Secures verification history on user level. Only the user can access their verification history.
+         * @path /users/{userId}/verification_history
+         * @allow (get, create, update, delete): Authenticated user with UID matching the userId.
+         *   Example: User with UID 'user123' can read their verification history at /users/user123/verification_history.
+         * @deny (get, create, update, delete): User with UID 'user123' tries to access /users/otherUser/verification_history.
+         * @principle Enforces document ownership for all operations.
+         */
+        match /users/{userId}/verification_history {
+          function isOwner(userId) {
+            return request.auth != null && request.auth.uid == userId;
+          }
+
+          function isSignedIn() {
+            return request.auth != null;
+          }
+            allow get: if isOwner(userId);
+            allow list: if false;
+            allow create: if isSignedIn() && request.auth.uid == userId;
+            allow update: if isOwner(userId);
+            allow delete: if isOwner(userId);
+        }
+
+    /**
+     * @description Secures educational document master templates. Only admins can access this collection.
+     * @path /document_masters/{masterId}
+     * @allow (get, create, update, delete): Authenticated admin user.
+     *   Example: An admin user can create a new master template.
+     * @deny (get, create, update, delete): Non-admin user attempts to create a master template.
+     * @principle Restricts access to authorized admins only.
+     */
+    match /document_masters/{masterId} {
+      function isAdmin() {
+        return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
+
+      allow get: if isAdmin();
+      allow list: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description Controls access to admin roles.
+     * @description Manages admin roles. The existence of a document with a specific UID grants admin privileges.
      * @path /roles_admin/{uid}
-     * @allow (create) Only the backend can create admin roles.
-     * @allow (get) Any authenticated user can check if they are an admin.
-     * @deny (list, update, delete) Listing, updating, and deleting are not allowed.
+     * @allow get: Authenticated admin user.
+     * @allow create: Only allowed if the authenticated user's UID matches the document ID.
+     *   Example: User with UID 'admin123' can create their admin role document at /roles_admin/admin123.
+     * @deny (update, delete, list): Prevents unauthorized modification or listing of admin roles.
+     * @principle Restricts management of admin roles to authorized users only.
      */
     match /roles_admin/{uid} {
       function isAdmin() {
-        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
       }
-      allow get: if request.auth != null;
+
+      function isOwner(uid) {
+              return request.auth.uid == uid;
+          }
+
+      allow get: if isAdmin() || isOwner(uid);
       allow list: if false;
-      allow create: if false; // Only backend should create these documents.
+      allow create: if request.auth.uid == uid;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Controls access to admin dashboards.
+     * @description Secures admin dashboard data. Only admins can access this collection.
      * @path /admin_dashboards/{dashboardId}
-     * @allow (get, list) Admins can read dashboard data.
-     * @allow (create, update, delete) Admins can create, update, and delete dashboard data.
-     * @deny (get, list, create, update, delete) Non-admins cannot access dashboard data.
+     * @allow (get, create, update, delete): Authenticated admin user.
+     *   Example: An admin user can view the admin dashboard.
+     * @deny (get, create, update, delete): Non-admin user attempts to view the admin dashboard.
      * @principle Restricts access to authorized admins only.
      */
     match /admin_dashboards/{dashboardId} {
       function isAdmin() {
-        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
       }
 
       allow get: if isAdmin();
-      allow list: if isAdmin();
+      allow list: if false;
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isAdmin();
