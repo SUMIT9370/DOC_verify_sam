@@ -79,7 +79,7 @@ export function SignUpForm() {
 
   useEffect(() => {
     if (!isUserLoading && user && firestore) {
-      const createProfile = async (firebaseUser: User) => {
+      const createProfileAndRole = async (firebaseUser: User) => {
         const userProfile = {
             id: firebaseUser.uid,
             uid: firebaseUser.uid,
@@ -89,10 +89,17 @@ export function SignUpForm() {
             userType: form.getValues('userType'),
         };
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        await setDoc(userDocRef, userProfile, { merge: true });
+        const adminRoleRef = doc(firestore, 'roles_admin', firebaseUser.uid);
+
+        // Create the user profile document and the admin role document
+        await Promise.all([
+            setDoc(userDocRef, userProfile, { merge: true }),
+            setDoc(adminRoleRef, { uid: firebaseUser.uid, role: 'admin' }) // Add admin role
+        ]);
+        
         router.push('/dashboard');
       }
-      createProfile(user);
+      createProfileAndRole(user);
     }
   }, [user, isUserLoading, router, firestore, form]);
 
