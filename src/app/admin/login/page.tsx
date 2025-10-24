@@ -57,10 +57,11 @@ export default function AdminLoginPage() {
         await auth.signOut(); // Sign out the non-admin user
       }
     } catch (error: any) {
-      console.error(error);
-      if (error.code === 'auth/invalid-credential') {
-        setError('Invalid email or password.');
+      // Catch specific Firebase auth errors for better user feedback
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        setError('Invalid email or password. Please try again.');
       } else {
+        console.error('Admin Login Error:', error);
         setError('An unexpected error occurred during login.');
       }
     } finally {
@@ -122,5 +123,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-
-    
