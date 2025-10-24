@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,27 +35,9 @@ const baseSchema = z.object({
   documentType: z.string().min(1, { message: 'Please select a document type.' }),
 });
 
-export function IssueDocumentForm() {
-  const [selectedDocType, setSelectedDocType] = useState<DocumentTypeConfig | null>(null);
-  const [currentSchema, setCurrentSchema] = useState<z.ZodObject<any>>(baseSchema);
-
-  const firestore = useFirestore();
-  const { toast } = useToast();
-
-  const form = useForm({
-    resolver: zodResolver(currentSchema),
-  });
-
-  const { isSubmitting } = form.formState;
-  const watchedDocType = useWatch({ control: form.control, name: 'documentType' });
-
-  // Effect to update the form schema when a new document type is selected
-  useState(() => {
-    const newDocType = documentTypes.find(doc => doc.value === watchedDocType);
-    if (newDocType) {
-      setSelectedDocType(newDocType);
-      // Dynamically build the Zod schema from the config
-      const fieldsSchema = newDocType.fields.reduce((schema, field) => {
+// Create a a Zod object from the config
+const generateSchema = (docType: DocumentTypeConfig) => {
+    const fieldsSchema = docType.fields.reduce((schema, field) => {
         let fieldValidation;
         switch (field.type) {
           case 'number':
@@ -68,17 +50,39 @@ export function IssueDocumentForm() {
         return schema.extend({ [field.name]: fieldValidation });
       }, z.object({}));
 
-      const newSchema = baseSchema.merge(fieldsSchema);
-      setCurrentSchema(newSchema);
-      form.reset({}, { keepValues: true }); // Reset validation state but keep values
-    } else {
-      setSelectedDocType(null);
-      setCurrentSchema(baseSchema);
+      return baseSchema.merge(fieldsSchema);
+}
+
+
+export function IssueDocumentForm() {
+  const [selectedDocType, setSelectedDocType] = useState<DocumentTypeConfig | null>(null);
+  
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const form = useForm({
+    resolver: zodResolver(selectedDocType ? generateSchema(selectedDocType) : baseSchema),
+    defaultValues: {
+        documentType: '',
     }
   });
 
+  const { isSubmitting } = form.formState;
+  const watchedDocType = useWatch({ control: form.control, name: 'documentType' });
 
-  async function onSubmit(values: z.infer<typeof currentSchema>) {
+  // Effect to update the form fields when a new document type is selected
+  useEffect(() => {
+    const newDocType = documentTypes.find(doc => doc.value === watchedDocType);
+    setSelectedDocType(newDocType || null);
+    // Keep the documentType value but clear out the old dynamic fields
+    const currentValues = form.getValues();
+    const newDefaults = { documentType: currentValues.documentType };
+    form.reset(newDefaults);
+
+  }, [watchedDocType, form]);
+
+
+  async function onSubmit(values: z.infer<z.ZodObject<any>>) {
     if (!firestore) {
       toast({
         title: 'Error',
@@ -152,7 +156,7 @@ export function IssueDocumentForm() {
           )}
         />
         
-        <div className={cn("space-y-4 transition-opacity duration-300", selectedDocType ? 'opacity-100' : 'opacity-50 pointer-events-none')}>
+        <div className={cn("space-y-4 transition-opacity duration-300", selectedDocType ? 'opacity-100' : 'opacity-0 h-0 pointer-events-none overflow-hidden')}>
             {selectedDocType?.fields.map(fieldConfig => (
                 <FormField
                     key={fieldConfig.name}
