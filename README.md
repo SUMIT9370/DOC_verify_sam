@@ -18,9 +18,26 @@ To get the project up and running on your local machine, follow these steps.
 ### Prerequisites
 
 - Node.js (v18 or later)
-- npm or yarn
+- npm, yarn, or pnpm
 
-### Installation & Setup
+### Firebase Setup
+
+1.  **Create a Firebase Project:**
+    *   Go to the [Firebase Console](https://console.firebase.google.com/).
+    *   Click **"Add project"**.
+    *   **Crucially**, when prompted for an "Analytics location", select a region compatible with the free tier, such as **`us-central1` (United States)**. This is required for Firebase Storage to work correctly on the free plan.
+    *   Complete the project creation process.
+
+2.  **Get Project Credentials:**
+    *   In your new Firebase project, go to **Project settings** (click the gear icon ⚙️ next to "Project Overview").
+    *   In the "General" tab, under "Your apps", create a new **Web app**.
+    *   After creating the web app, Firebase will provide you with a `firebaseConfig` object. You will need these values to connect your application.
+
+3.  **Environment Variables:**
+    *   The application uses the `src/firebase/config.ts` file to configure Firebase. You will need to replace the placeholder values in that file with the credentials from your new Firebase project.
+    *   Enable **Authentication** (with Email/Password and Google providers), **Firestore**, and **Storage** in the Firebase console for your project.
+
+### Local Installation
 
 1.  **Clone the repository:**
     ```bash
@@ -31,25 +48,24 @@ To get the project up and running on your local machine, follow these steps.
 2.  **Install dependencies:**
     ```bash
     npm install
+    # or
+    # yarn install
+    # or
+    # pnpm install
     ```
 
-3.  **Firebase Setup:**
-    This project is configured to work with Firebase. The necessary configuration is located in `src/firebase/config.ts`. Ensure your Firebase project has **Authentication**, **Firestore**, and **Storage** enabled.
+3.  **Run the application:**
+    *   **Next.js App:**
+        ```bash
+        npm run dev
+        ```
+        The application will be available at `http://localhost:9002`.
 
-### Running the Application
-
-1.  **Run the development server:**
-    ```bash
-    npm run dev
-    ```
-    The application will be available at `http://localhost:9002`.
-
-2.  **Run the Genkit AI flows (for AI features):**
-    In a separate terminal, run:
-    ```bash
-    npm run genkit:dev
-    ```
-    This starts the Genkit development server, which is required for AI-powered features like document verification and data extraction.
+    *   **Genkit AI Server:** (In a separate terminal)
+        ```bash
+        npm run genkit:dev
+        ```
+        This starts the Genkit development server, which is required for AI-powered features.
 
 ## Available Scripts
 
@@ -58,14 +74,16 @@ To get the project up and running on your local machine, follow these steps.
 -   `npm run start`: Starts a production server.
 -   `npm run lint`: Lints the project files.
 -   `npm run genkit:dev`: Starts the Genkit development server.
+-   `npm run genkit:watch`: Starts the Genkit server in watch mode.
+-   `npm run typecheck`: Runs the TypeScript compiler to check for type errors.
 
 ## Project Structure
 
--   `src/app/`: Contains all the pages and layouts for the Next.js App Router.
--   `src/components/`: Shared React components used across the application.
+-   `src/app/`: Contains all pages and layouts for the Next.js App Router.
+-   `src/components/`: Shared React components.
     -   `src/components/ui/`: UI components from ShadCN.
 -   `src/firebase/`: Firebase configuration, providers, and custom hooks.
--   `src/ai/`: Contains all Genkit AI flows and configurations.
+-   `src/ai/`: Genkit AI flows and configurations.
 -   `src/lib/`: Utility functions and libraries.
--   `docs/`: Contains backend configuration and schema definitions.
+-   `docs/`: Backend configuration and schema definitions.
 -   `public/`: Static assets like images and logos.
