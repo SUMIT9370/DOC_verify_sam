@@ -82,6 +82,45 @@
         "fileLocation"
       ]
     },
+    "EducationalDocument": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EducationalDocument",
+      "type": "object",
+      "description": "Represents an educational document master template.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the document master."
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Full name of the student."
+        },
+        "universityName": {
+          "type": "string",
+          "description": "Name of the issuing university or institution."
+        },
+        "degreeName": {
+          "type": "string",
+          "description": "Name of the degree or certificate."
+        },
+        "dateOfIssue": {
+          "type": "string",
+          "description": "Date the document was issued.",
+          "format": "date"
+        },
+        "extractedText": {
+          "type": "string",
+          "description": "Full text extracted from the document by OCR."
+        }
+      },
+      "required": [
+        "studentName",
+        "universityName",
+        "degreeName",
+        "dateOfIssue"
+      ]
+    },
     "VerificationCheck": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "VerificationCheck",
@@ -215,6 +254,22 @@
         }
       },
       {
+        "path": "/document_masters/{masterId}",
+        "definition": {
+          "entityName": "EducationalDocument",
+          "schema": {
+            "$ref": "#/backend/entities/EducationalDocument"
+          },
+          "description": "Stores master educational document templates uploaded by admins. Access is restricted to admins.",
+          "params": [
+            {
+              "name": "masterId",
+              "description": "The unique identifier for the master document."
+            }
+          ]
+        }
+      },
+      {
         "path": "/users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}",
         "definition": {
           "entityName": "VerificationCheck",
@@ -271,6 +326,7 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support DuckVerify's document verification process for students, universities, and companies, focusing on secure authentication and efficient data management. It incorporates denormalization to ensure authorization independence and facilitate atomic operations. The structure utilizes path-based ownership and membership maps for access control.\n\n**Authorization Independence:**\n\n*   User documents are stored directly under `/users/{userId}`, enabling straightforward, path-based access control.\n*   Documents are stored under `/users/{userId}/documents/{documentId}`. Each document contains the `userId` to explicitly link it to its owner, avoiding the need for `get()` calls to parent documents for authorization. Similarly VerificationChecks include the `documentId` avoiding `get()` calls.\n\n**QAPs (Rules are not Filters):**\n\n*   Data segregation: Each user type (student, university, company) has its own dedicated space under `/users/{userId}`, ensuring that different user types do not share the same collections and associated security rules. This segregation is also applied at the subcollection level (e.g., documents, verification checks).\n\n**Global Roles:**\n\n*   Admin roles are managed through the `/roles_admin/{uid}` collection. The existence of a document in this collection grants admin privileges.\n\n**Admin Dashboard:**\n\n*   AdminDashboard documents are stored in the `/admin_dashboards/{dashboardId}` collection.  Access to this collection is restricted to users with admin privileges, verified through the `/roles_admin/{uid}` collection."
+    "reasoning": "The Firestore structure is designed to support DuckVerify's document verification process for students, universities, and companies, focusing on secure authentication and efficient data management. It incorporates denormalization to ensure authorization independence and facilitate atomic operations. The structure utilizes path-based ownership and membership maps for access control.\n\n**Authorization Independence:**\n\n*   User documents are stored directly under `/users/{userId}`, enabling straightforward, path-based access control.\n*   Documents are stored under `/users/{userId}/documents/{documentId}`. Each document contains the `userId` to explicitly link it to its owner, avoiding the need for `get()` calls to parent documents for authorization. Similarly VerificationChecks include the `documentId` avoiding `get()` calls.\n*   Master documents are stored in `/document_masters/{masterId}`. This top-level collection is secured by rules that only allow admin access.\n\n**QAPs (Rules are not Filters):**\n\n*   Data segregation: Each user type (student, university, company) has its own dedicated space under `/users/{userId}`, ensuring that different user types do not share the same collections and associated security rules. This segregation is also applied at the subcollection level (e.g., documents, verification checks).\n\n**Global Roles:**\n\n*   Admin roles are managed through the `/roles_admin/{uid}` collection. The existence of a document in this collection grants admin privileges.\n\n**Admin Dashboard:**\n\n*   AdminDashboard documents are stored in the `/admin_dashboards/{dashboardId}` collection.  Access to this collection is restricted to users with admin privileges, verified through the `/roles_admin/{uid}` collection."
   }
 }
+    
