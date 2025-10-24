@@ -19,8 +19,8 @@ export default function AdminLoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
 
-  const [email, setEmail] = useState('admin@duckverify.gov.in');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -90,7 +90,7 @@ export default function AdminLoginPage() {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
-                  placeholder="admin@duckverify.gov.in"
+                  placeholder="admin@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
