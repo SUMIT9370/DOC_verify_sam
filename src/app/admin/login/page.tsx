@@ -39,11 +39,11 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // After successful sign-in, check if the user is an admin.
-      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-      const adminDoc = await getDoc(adminRoleRef);
+      // After successful sign-in, check if the user is an admin by checking their profile.
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
 
-      if (adminDoc.exists()) {
+      if (userDoc.exists() && userDoc.data()?.isAdmin === true) {
         // User is an admin, proceed to dashboard
         sessionStorage.setItem('isAdminAuthenticated', 'true');
         toast({
@@ -122,3 +122,5 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+
+    
