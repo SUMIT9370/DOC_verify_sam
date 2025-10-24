@@ -35,33 +35,101 @@ const baseSchema = z.object({
   documentType: z.string().min(1, { message: 'Please select a document type.' }),
 });
 
-// Create a a Zod object from the config
-const generateSchema = (docType: DocumentTypeConfig) => {
-    const fieldsSchema = docType.fields.reduce((schema, field) => {
-        let fieldValidation;
-        switch (field.type) {
-          case 'number':
-            fieldValidation = z.coerce.number().min(1, `${field.label} is required.`);
-            break;
-          default:
-            fieldValidation = z.string().min(1, `${field.label} is required.`);
-            break;
-        }
-        return schema.extend({ [field.name]: fieldValidation });
-      }, z.object({}));
+// Specific Zod schemas for each document type
+const domicileSchema = baseSchema.extend({
+    fullName: z.string().min(1, "Full Name is required."),
+    fatherName: z.string().min(1, "Father's Name is required."),
+    dateOfBirth: z.string().min(1, "Date of Birth is required."),
+    placeOfBirth: z.string().min(1, "Place of Birth is required."),
+    certificateNumber: z.string().min(1, "Certificate Number is required."),
+    dateOfIssue: z.string().min(1, "Date of Issue is required."),
+});
 
-      return baseSchema.merge(fieldsSchema);
-}
+const incomeCertificateSchema = baseSchema.extend({
+    applicantName: z.string().min(1, "Applicant Name is required."),
+    guardianName: z.string().min(1, "Guardian's Name is required."),
+    annualIncome: z.coerce.number().positive("Annual Income must be a positive number."),
+    certificateNumber: z.string().min(1, "Certificate Number is required."),
+    dateOfIssue: z.string().min(1, "Date of Issue is required."),
+});
+
+const degreeCertificateSchema = baseSchema.extend({
+    studentName: z.string().min(1, "Student Name is required."),
+    universityName: z.string().min(1, "University Name is required."),
+    degreeName: z.string().min(1, "Degree Name is required."),
+    major: z.string().min(1, "Major/Branch is required."),
+    rollNumber: z.string().min(1, "Roll/Seat Number is required."),
+    dateOfIssue: z.string().min(1, "Date of Issue is required."),
+    grade: z.string().min(1, "Grade/Class is required."),
+});
+
+const hscMarksheetSchema = baseSchema.extend({
+    studentName: z.string().min(1, "Student Name is required."),
+    mothersName: z.string().min(1, "Mother's Name is required."),
+    seatNumber: z.string().min(1, "Seat Number is required."),
+    schoolName: z.string().min(1, "School/College Name is required."),
+    boardName: z.string().min(1, "Board Name is required."),
+    passingYear: z.coerce.number().int().min(1900).max(new Date().getFullYear(), "Invalid year."),
+    marksSubject1: z.coerce.number().min(0).max(100),
+    marksSubject2: z.coerce.number().min(0).max(100),
+    marksSubject3: z.coerce.number().min(0).max(100),
+    marksSubject4: z.coerce.number().min(0).max(100),
+    marksSubject5: z.coerce.number().min(0).max(100),
+    totalMarks: z.coerce.number().positive(),
+    percentage: z.coerce.number().min(0).max(100),
+});
+
+const sscMarksheetSchema = baseSchema.extend({
+    studentName: z.string().min(1, "Student Name is required."),
+    mothersName: z.string().min(1, "Mother's Name is required."),
+    seatNumber: z.string().min(1, "Seat Number is required."),
+    schoolName: z.string().min(1, "School Name is required."),
+    boardName: z.string().min(1, "Board Name is required."),
+    passingYear: z.coerce.number().int().min(1900).max(new Date().getFullYear(), "Invalid year."),
+    marksMath: z.coerce.number().min(0).max(100),
+    marksScience: z.coerce.number().min(0).max(100),
+    marksEnglish: z.coerce.number().min(0).max(100),
+    totalMarks: z.coerce.number().positive(),
+    percentage: z.coerce.number().min(0).max(100),
+});
+
+const leavingCertificateSchema = baseSchema.extend({
+    studentName: z.string().min(1, "Student Name is required."),
+    dateOfBirth: z.string().min(1, "Date of Birth is required."),
+    lastAttended: z.string().min(1, "Last Class Attended is required."),
+    dateOfLeaving: z.string().min(1, "Date of Leaving is required."),
+    schoolName: z.string().min(1, "School/College Name is required."),
+});
+
+const feeReceiptSchema = baseSchema.extend({
+    studentName: z.string().min(1, "Student Name is required."),
+    receiptNumber: z.string().min(1, "Receipt Number is required."),
+    amountPaid: z.coerce.number().positive(),
+    paymentDate: z.string().min(1, "Date of Payment is required."),
+    academicYear: z.string().min(1, "Academic Year is required."),
+});
+
+// A map to associate document type values with their schemas
+const schemaMap: Record<string, z.ZodObject<any>> = {
+    'domicile': domicileSchema,
+    'income_certificate': incomeCertificateSchema,
+    'degree_certificate': degreeCertificateSchema,
+    'hsc_marksheet': hscMarksheetSchema,
+    'ssc_marksheet': sscMarksheetSchema,
+    'leaving_certificate': leavingCertificateSchema,
+    'fee_receipt': feeReceiptSchema,
+};
 
 
 export function IssueDocumentForm() {
   const [selectedDocType, setSelectedDocType] = useState<DocumentTypeConfig | null>(null);
-  
+  const [currentSchema, setCurrentSchema] = useState<z.ZodObject<any>>(baseSchema);
+
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const form = useForm({
-    resolver: zodResolver(selectedDocType ? generateSchema(selectedDocType) : baseSchema),
+    resolver: zodResolver(currentSchema),
     defaultValues: {
         documentType: '',
     }
@@ -70,10 +138,14 @@ export function IssueDocumentForm() {
   const { isSubmitting } = form.formState;
   const watchedDocType = useWatch({ control: form.control, name: 'documentType' });
 
-  // Effect to update the form fields when a new document type is selected
+  // Effect to update the form fields and schema when a new document type is selected
   useEffect(() => {
     const newDocType = documentTypes.find(doc => doc.value === watchedDocType);
     setSelectedDocType(newDocType || null);
+    
+    // Update the Zod schema for validation
+    setCurrentSchema(newDocType ? schemaMap[newDocType.value] : baseSchema);
+
     // Keep the documentType value but clear out the old dynamic fields
     const currentValues = form.getValues();
     const newDefaults = { documentType: currentValues.documentType };
