@@ -1,93 +1,58 @@
 /**
- * @fileoverview Firestore Security Rules for DocVerify.
+ * @fileOverview Firestore Security Rules for DocVerify.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles and
- * verification histories. Administrative access is required for document masters
- * and admin dashboards. All data access is authenticated.
+ * This ruleset enforces a role-based access control model with a focus on user-owned data and admin-protected resources.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data, accessible only to the user themselves.
- * - /users/{userId}/verification_history/{historyId}: Stores verification history
- *   for each user, accessible only to the user themselves.
- * - /document_masters/{masterId}: Stores master document templates, accessible
- *   only to administrators.
- * - /admin_dashboards/{dashboardId}: Stores admin dashboard data, accessible
- *   only to administrators.
+ * - /users/{userId}: Stores user profiles; access is restricted to the user themselves.
+ * - /users/{userId}/verification_history/{historyId}: Stores verification histories for each user; only the user can access their history.
+ * - /document_masters/{masterId}: Stores document master templates; only admins can create, update, or delete these.
+ * - /admin_dashboards/{dashboardId}: Stores admin dashboard data; only admins have access.
  *
  * Key Security Decisions:
- * - Users can only access their own profile data and verification histories.
- * - Only administrators can create, update, or delete document masters and access
- *   admin dashboard data.
- * - User listing is not allowed.
- * - All writes require authentication.
+ * - User data is strictly owned and controlled by the user.
+ * - Admin-level functionality is protected behind an `isAdmin` flag on the user document.
+ * - Data validation during write operations is minimized in this prototyping phase, focusing on authorization and relationship integrity.
+ * - List operations are generally allowed for user-owned data but restricted for admin data.
  *
  * Denormalization for Authorization:
- *  - The isAdmin field is denormalized directly onto the user document in `/users/{userId}` to allow for fast, simple admin checks without additional reads.
+ * - The `isAdmin` flag is stored directly on the user document to avoid costly `get()` calls to a separate roles collection.
+ *
+ * Structural Segregation:
+ * - Different data types (user profiles, documents, verification checks) are stored in separate collections to simplify rule logic and improve performance.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profiles.
+     * @description Allows users to manage their own profiles.
      * @path /users/{userId}
-     * @allow (create) - If the user's auth UID matches the userId in the path.
-     * @allow (get) - If the user's auth UID matches the userId in the path.
-     * @allow (update) - If the user's auth UID matches the userId in the path.
-     * @allow (delete) - If the user's auth UID matches the userId in the path.
-     * @allow (list) - Denied. User listing is not permitted.
-     * @deny (create) - If the user's auth UID does not match the userId in the path.
-     * @deny (update) - If the user's auth UID does not match the userId in the path.
-     * @deny (delete) - If the user's auth UID does not match the userId in the path and the document doesn't exist.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can create their own profile if their UID matches the {userId} parameter.
+     * @allow (get, update, delete) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can read, update, or delete their own profile.
+     * @deny (create) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' cannot create a profile with a different {userId}.
+     * @deny (get, update, delete) User 'randomUserId' cannot read, update, or delete User 'BjtRMzHAp9OW27q60hjLVlkmeH12's profile.
+     * @principle Enforces user ownership for profile data.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow create: if isNewOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to verification history for a user.
+     * @description Allows users to manage their own verification history.
      * @path /users/{userId}/verification_history/{historyId}
-     * @allow (create) - If the user's auth UID matches the userId in the path.
-     * @allow (get) - If the user's auth UID matches the userId in the path.
-     * @allow (update) - If the user's auth UID matches the userId in the path.
-     * @allow (delete) - If the user's auth UID matches the userId in the path.
-     * @allow (list) - If the user's auth UID matches the userId in the path.
-     * @deny (create) - If the user's auth UID does not match the userId in the path.
-     * @deny (update) - If the user's auth UID does not match the userId in the path.
-     * @deny (delete) - If the user's auth UID does not match the userId in the path and the document doesn't exist.
-     * @principle Enforces document ownership for verification history.
+     * @allow (create) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can create a history entry under their own user ID.
+     * @allow (get, list, update, delete) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can read, list, update, or delete their own history entries.
+     * @deny (create) User 'randomUserId' cannot create a history entry under User 'BjtRMzHAp9OW27q60hjLVlkmeH12's ID.
+     * @deny (get, list, update, delete) User 'randomUserId' cannot read, list, update, or delete User 'BjtRMzHAp9OW27q60hjLVlkmeH12's history entries.
+     * @principle Enforces user ownership for verification history data.
      */
     match /users/{userId}/verification_history/{historyId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
-      }
-
-       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
@@ -96,71 +61,54 @@ service cloud.firestore {
     }
 
     /**
-     * @description Controls access to educational document masters.
+     * @description Allows admins to manage document master templates.
      * @path /document_masters/{masterId}
-     * @allow (create) - If the user is an admin.
-     * @allow (get) - If the user is an admin.
-     * @allow (update) - If the user is an admin.
-     * @allow (delete) - If the user is an admin.
-     * @allow (list) - If the user is an admin.
-     * @deny (create) - If the user is not an admin.
-     * @deny (update) - If the user is not an admin and the document doesn't exist.
-     * @deny (delete) - If the user is not an admin and the document doesn't exist.
-     * @principle Restricts access to document masters to admins.
+     * @allow (get, list) Any user can read existing document masters.
+     * @allow (create, update, delete) Only admins can create, update, or delete document masters.
+     * @deny (create, update, delete) Non-admin users cannot create, update, or delete document masters.
+     * @principle Restricts access to document master templates to admin users.
      */
     match /document_masters/{masterId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isAdmin() {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      }
-
-      function isExistingAdmin() {
-        return isAdmin() && resource != null;
-      }
-
-
-      allow get: if isAdmin();
-      allow list: if isAdmin();
+      allow get, list: if true;
       allow create: if isAdmin();
-      allow update: if isExistingAdmin();
-      allow delete: if isExistingAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
     }
 
     /**
-     * @description Controls access to admin dashboards.
+     * @description Allows admins to manage admin dashboard data.
      * @path /admin_dashboards/{dashboardId}
-     * @allow (create) - If the user is an admin.
-     * @allow (get) - If the user is an admin.
-     * @allow (update) - If the user is an admin.
-     * @allow (delete) - If the user is an admin.
-     * @allow (list) - If the user is an admin.
-     * @deny (create) - If the user is not an admin.
-     * @deny (update) - If the user is not an admin and the document doesn't exist.
-     * @deny (delete) - If the user is not an admin and the document doesn't exist.
-     * @principle Restricts access to admin dashboards to admins.
+     * @allow (get, list) Only admins can read admin dashboard data.
+     * @allow (create, update, delete) Only admins can create, update, or delete admin dashboard data.
+     * @deny (get, list, create, update, delete) Non-admin users cannot access admin dashboard data.
+     * @principle Restricts access to admin dashboard data to admin users.
      */
     match /admin_dashboards/{dashboardId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isAdmin() {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      }
-
-        function isExistingAdmin() {
-        return isAdmin() && resource != null;
-      }
-
-
-      allow get: if isAdmin();
-      allow list: if isAdmin();
+      allow get, list: if isAdmin();
       allow create: if isAdmin();
-      allow update: if isExistingAdmin();
-      allow delete: if isExistingAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isNewOwner(userId) {
+        return request.auth.uid == userId && request.resource.data.id == userId;
+    }
+
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }
