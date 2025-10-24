@@ -83,11 +83,13 @@ export function SignUpForm() {
   }
 
   const handleGoogleSignIn = () => {
+    if (!auth) return;
     const googleProvider = new GoogleAuthProvider();
     initiateSignInWithRedirect(auth, googleProvider);
   };
 
   const handleGitHubSignIn = () => {
+    if (!auth) return;
     const githubProvider = new GithubAuthProvider();
     initiateSignInWithRedirect(auth, githubProvider);
   };
