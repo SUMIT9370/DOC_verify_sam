@@ -1,3 +1,5 @@
+'use client';
+
 // Defines the structure for a single form field
 type FormFieldConfig = {
   name: string; // The key for the data object
@@ -19,7 +21,7 @@ export const documentTypes: DocumentTypeConfig[] = [
     value: 'domicile',
     label: 'Domicile Certificate',
     fields: [
-      { name: 'fullName', label: 'Full Name', placeholder: 'e.g., Priya Sharma', type: 'text' },
+      { name: 'fullName', label: 'Full Name', placeholder: 'e.g., Sumit Sharma', type: 'text' },
       { name: 'fatherName', label: "Father's Name", placeholder: 'e.g., Rajesh Sharma', type: 'text' },
       { name: 'dateOfBirth', label: 'Date of Birth', placeholder: '', type: 'date' },
       { name: 'placeOfBirth', label: 'Place of Birth', placeholder: 'e.g., Mumbai, Maharashtra', type: 'text' },
@@ -31,7 +33,7 @@ export const documentTypes: DocumentTypeConfig[] = [
     value: 'income_certificate',
     label: 'Income Certificate',
     fields: [
-      { name: 'applicantName', label: 'Applicant Name', placeholder: 'e.g., Rohan Verma', type: 'text' },
+      { name: 'applicantName', label: 'Applicant Name', placeholder: 'e.g., Sumit Verma', type: 'text' },
       { name: 'guardianName', label: "Guardian's Name", placeholder: 'e.g., Anil Verma', type: 'text' },
       { name: 'annualIncome', label: 'Annual Income (INR)', placeholder: 'e.g., 500000', type: 'number' },
       { name: 'certificateNumber', label: 'Certificate Number', placeholder: 'e.g., INC/2024/54321', type: 'text' },
@@ -42,7 +44,7 @@ export const documentTypes: DocumentTypeConfig[] = [
     value: 'degree_certificate',
     label: 'Degree Certificate',
     fields: [
-      { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Anjali Singh', type: 'text' },
+      { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Sumit Singh', type: 'text' },
       { name: 'universityName', label: 'University Name', placeholder: 'e.g., University of Mumbai', type: 'text' },
       { name: 'degreeName', label: 'Degree Name', placeholder: 'e.g., Bachelor of Engineering', type: 'text' },
       { name: 'major', label: 'Major/Branch', placeholder: 'e.g., Computer Engineering', type: 'text' },
@@ -55,7 +57,7 @@ export const documentTypes: DocumentTypeConfig[] = [
     value: 'hsc_marksheet',
     label: 'HSC (Class 12) Marksheet',
     fields: [
-      { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Anjali Singh', type: 'text' },
+      { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Sumit Singh', type: 'text' },
       { name: 'mothersName', label: "Mother's Name", placeholder: 'e.g., Sunita Singh', type: 'text' },
       { name: 'seatNumber', label: 'Seat Number', placeholder: 'e.g., M123456', type: 'text' },
       { name: 'schoolName', label: 'School/College Name', placeholder: 'e.g., Delhi Public School, R.K. Puram', type: 'text' },
@@ -74,7 +76,7 @@ export const documentTypes: DocumentTypeConfig[] = [
     value: 'ssc_marksheet',
     label: 'SSC (Class 10) Marksheet',
     fields: [
-        { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Sameer Khan', type: 'text' },
+        { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Sumit Khan', type: 'text' },
         { name: 'mothersName', label: "Mother's Name", placeholder: 'e.g., Fatima Khan', type: 'text' },
         { name: 'seatNumber', label: 'Seat Number', placeholder: 'e.g., P654321', type: 'text' },
         { name: 'schoolName', label: 'School Name', placeholder: 'e.g., St. Xavier\'s High School, Fort', type: 'text' },
@@ -91,7 +93,7 @@ export const documentTypes: DocumentTypeConfig[] = [
     value: 'leaving_certificate',
     label: 'Leaving Certificate (LC)',
     fields: [
-        { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Aisha Patel', type: 'text' },
+        { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Sumit Patel', type: 'text' },
         { name: 'dateOfBirth', label: 'Date of Birth', placeholder: '', type: 'date' },
         { name: 'lastAttended', label: 'Last Class Attended', placeholder: 'e.g., Class X', type: 'text' },
         { name: 'dateOfLeaving', label: 'Date of Leaving', placeholder: '', type: 'date' },
@@ -102,7 +104,7 @@ export const documentTypes: DocumentTypeConfig[] = [
     value: 'fee_receipt',
     label: 'Fee Receipt',
     fields: [
-        { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Vikram Rathore', type: 'text' },
+        { name: 'studentName', label: 'Student Name', placeholder: 'e.g., Sumit Rathore', type: 'text' },
         { name: 'receiptNumber', label: 'Receipt Number', placeholder: 'e.g., 2024-25/00123', type: 'text' },
         { name: 'amountPaid', label: 'Amount Paid (INR)', placeholder: 'e.g., 75000', type: 'number' },
         { name: 'paymentDate', label: 'Date of Payment', placeholder: '', type: 'date' },

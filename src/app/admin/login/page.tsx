@@ -125,7 +125,7 @@ export default function AdminLoginPage() {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
-                  placeholder="admin@example.com"
+                  placeholder="sumit.admin@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -150,7 +150,7 @@ export default function AdminLoginPage() {
                         <Label htmlFor="reset-email">Email</Label>
                         <Input
                           id="reset-email"
-                          placeholder="admin@example.com"
+                          placeholder="sumit.admin@example.com"
                           value={resetEmail}
                           onChange={(e) => setResetEmail(e.target.value)}
                           required
