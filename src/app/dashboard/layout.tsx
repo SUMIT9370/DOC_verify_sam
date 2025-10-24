@@ -65,7 +65,7 @@ export default function DashboardLayout({
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="DuckVerify Logo" width={32} height={32} />
+              <Image src="/logo.png" alt="DuckVerify Logo" width={40} height={40} />
               <div className="flex flex-col">
                 <h2 className="text-lg font-semibold font-headline text-sidebar-foreground">
                   DuckVerify

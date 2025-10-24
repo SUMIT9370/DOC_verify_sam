@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
         <div
           className="flex items-center justify-center gap-2 mb-6"
         >
-          <Image src="/logo.png" alt="DuckVerify Logo" width={40} height={40} />
+          <Image src="/logo.png" alt="DuckVerify Logo" width={48} height={48} />
           <span className="text-2xl font-bold font-headline">DuckVerify Admin</span>
         </div>
         <Card className="shadow-2xl">

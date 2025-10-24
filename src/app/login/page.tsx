@@ -18,7 +18,7 @@ export default function LoginPage() {
           className="flex items-center justify-center gap-2 mb-6"
           prefetch={false}
         >
-          <Image src="/logo.png" alt="DuckVerify Logo" width={40} height={40} />
+          <Image src="/logo.png" alt="DuckVerify Logo" width={48} height={48} />
           <span className="text-2xl font-bold font-headline">DuckVerify</span>
         </Link>
         <Card className="shadow-2xl">
