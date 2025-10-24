@@ -41,6 +41,16 @@ const initialSteps: VerificationStep[] = [
   { name: 'Validating Hallmark/Stamp', status: 'pending', icon: <Stamp className="h-5 w-5" /> },
 ];
 
+const fileToDataUri = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
+
 export function VerificationProgress({ file, autoStart }: VerificationProgressProps) {
   const [steps, setSteps] = useState<VerificationStep[]>(initialSteps);
   const [progress, setProgress] = useState(0);
@@ -53,15 +63,6 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
 
   useEffect(() => {
     if (!autoStart || !user || !firestore) return;
-
-    const fileToDataUri = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    };
 
     const runVerification = async () => {
       if (!user) {
@@ -91,11 +92,11 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
         const aiResult = await verifyDocument({ documentDataUri: dataUri });
         setResult(aiResult);
         
-        // STEP 4: Save result to Firestore (without documentUrl)
+        // STEP 4: Save result to Firestore with the image as a Data URI
         const historyCollection = collection(firestore, 'users', user.uid, 'verification_history');
         await addDoc(historyCollection, {
             documentName: file.name,
-            documentUrl: '', // No URL since we are not uploading to storage
+            documentUrl: dataUri, // Save the image data directly
             isAuthentic: aiResult.isAuthentic,
             verificationDetails: aiResult.verificationDetails,
             timestamp: serverTimestamp()

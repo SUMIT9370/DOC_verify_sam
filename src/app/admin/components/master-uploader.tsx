@@ -13,6 +13,15 @@ type FileWithPreview = File & {
   preview: string;
 };
 
+const fileToDataUri = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
 export function MasterUploader() {
   const [file, setFile] = useState<FileWithPreview | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -52,27 +61,23 @@ export function MasterUploader() {
     setError(null);
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const dataUri = reader.result as string;
-        const extractedData = await extractDocumentData({ documentDataUri: dataUri });
-        setResult(extractedData);
+      const dataUri = await fileToDataUri(file);
+      const extractedData = await extractDocumentData({ documentDataUri: dataUri });
+      setResult(extractedData);
 
-        // Save to Firestore
-        const mastersCollection = collection(firestore, 'document_masters');
-        await addDoc(mastersCollection, extractedData);
+      // Save to Firestore, including the data URI of the image
+      const mastersCollection = collection(firestore, 'document_masters');
+      await addDoc(mastersCollection, {
+        ...extractedData,
+        documentDataUri: dataUri 
+      });
 
-        toast({
-          title: 'Success!',
-          description: 'Document master has been processed and saved.',
-          variant: 'default',
-        });
-        setFile(null);
-      };
-      reader.onerror = (error) => {
-        throw error;
-      };
+      toast({
+        title: 'Success!',
+        description: 'Document master has been processed and saved.',
+        variant: 'default',
+      });
+      setFile(null);
     } catch (e: any) {
       console.error(e);
       setError('Failed to process the document. Please try again.');

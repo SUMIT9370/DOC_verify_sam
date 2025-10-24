@@ -2,6 +2,7 @@
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
+import Image from 'next/image';
 import {
     Table,
     TableBody,
@@ -14,12 +15,20 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from '@/components/ui/skeleton';
 import { File, Inbox } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+  } from "@/components/ui/dialog"
 
 type VerificationHistoryItem = {
     id: string;
     documentName: string;
     isAuthentic: boolean;
     verificationDetails: string;
+    documentUrl: string; // Now a Base64 Data URI
     timestamp: {
         seconds: number;
         nanoseconds: number;
@@ -59,7 +68,7 @@ export default function HistoryPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Document Name</TableHead>
+                            <TableHead>Document</TableHead>
                             <TableHead className="w-[150px]">Status</TableHead>
                             <TableHead className="text-right w-[220px]">Verification Date</TableHead>
                         </TableRow>
@@ -73,18 +82,43 @@ export default function HistoryPage() {
                             </TableRow>
                         ))}
                         {!isLoading && historyData && historyData.length > 0 && historyData.map((item) => (
-                            <TableRow key={item.id}>
-                                <TableCell className="font-medium flex items-center gap-2">
-                                    <File className="h-4 w-4 text-muted-foreground" />
-                                    {item.documentName}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant={item.isAuthentic ? 'default' : 'destructive'} className={item.isAuthentic ? 'bg-green-600 hover:bg-green-700' : ''}>
-                                        {item.isAuthentic ? 'Authentic' : 'Fake Detected'}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-xs">{formatDate(item.timestamp)}</TableCell>
-                            </TableRow>
+                            <Dialog key={item.id}>
+                                <DialogTrigger asChild>
+                                    <TableRow className="cursor-pointer">
+                                        <TableCell className="font-medium flex items-center gap-2">
+                                            <File className="h-4 w-4 text-muted-foreground" />
+                                            {item.documentName}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={item.isAuthentic ? 'default' : 'destructive'} className={item.isAuthentic ? 'bg-green-600 hover:bg-green-700' : ''}>
+                                                {item.isAuthentic ? 'Authentic' : 'Fake Detected'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono text-xs">{formatDate(item.timestamp)}</TableCell>
+                                    </TableRow>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl">
+                                    <DialogHeader>
+                                        <DialogTitle>{item.documentName}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                        <div className="space-y-4">
+                                            <h4 className="font-semibold">Verification Details</h4>
+                                            <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{item.verificationDetails}</p>
+                                             <h4 className="font-semibold">Status</h4>
+                                             <Badge variant={item.isAuthentic ? 'default' : 'destructive'} className={item.isAuthentic ? 'bg-green-600' : ''}>
+                                                {item.isAuthentic ? 'Authentic' : 'Fake Detected'}
+                                            </Badge>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <h4 className="font-semibold">Document Image</h4>
+                                            <div className="relative aspect-square border rounded-md bg-white p-2">
+                                                <Image src={item.documentUrl} alt={item.documentName} layout="fill" objectFit="contain" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         ))}
                     </TableBody>
                 </Table>
