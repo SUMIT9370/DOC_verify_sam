@@ -1,0 +1,276 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the DuckVerify system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "userType": {
+          "type": "string",
+          "description": "Type of user (student, university, company)."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "uid": {
+          "type": "string",
+          "description": "The Firebase user ID."
+        }
+      },
+      "required": [
+        "id",
+        "userType",
+        "email",
+        "displayName",
+        "uid"
+      ]
+    },
+    "Document": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Document",
+      "type": "object",
+      "description": "Represents a document uploaded for verification.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the document."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who uploaded the document. (Relationship: User 1:N Document)"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date and time when the document was uploaded.",
+          "format": "date-time"
+        },
+        "documentName": {
+          "type": "string",
+          "description": "Name of the document."
+        },
+        "documentType": {
+          "type": "string",
+          "description": "Type of the document (e.g., certificate, degree)."
+        },
+        "fileLocation": {
+          "type": "string",
+          "description": "Storage location of the document file."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "uploadDate",
+        "documentName",
+        "documentType",
+        "fileLocation"
+      ]
+    },
+    "VerificationCheck": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VerificationCheck",
+      "type": "object",
+      "description": "Represents a single verification check performed on a document.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the verification check."
+        },
+        "documentId": {
+          "type": "string",
+          "description": "Reference to the Document being checked. (Relationship: Document 1:N VerificationCheck)"
+        },
+        "checkDate": {
+          "type": "string",
+          "description": "Date and time when the verification check was performed.",
+          "format": "date-time"
+        },
+        "ocrText": {
+          "type": "string",
+          "description": "Extracted text from the document image using OCR."
+        },
+        "qrVerificationResult": {
+          "type": "boolean",
+          "description": "Result of the QR code verification (true if valid, false otherwise)."
+        },
+        "textAlignmentResult": {
+          "type": "boolean",
+          "description": "Result of the text alignment check (true if aligned, false otherwise)."
+        },
+        "watermarkDetected": {
+          "type": "boolean",
+          "description": "Indicates if a watermark was detected (true if detected, false otherwise)."
+        },
+        "hallmarkDetected": {
+          "type": "boolean",
+          "description": "Indicates if a hallmark was detected (true if detected, false otherwise)."
+        },
+        "databaseVerificationResult": {
+          "type": "boolean",
+          "description": "Result of the database verification check (true if found, false otherwise)."
+        }
+      },
+      "required": [
+        "id",
+        "documentId",
+        "checkDate",
+        "ocrText",
+        "qrVerificationResult",
+        "textAlignmentResult",
+        "watermarkDetected",
+        "hallmarkDetected",
+        "databaseVerificationResult"
+      ]
+    },
+    "AdminDashboard": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminDashboard",
+      "type": "object",
+      "description": "Represents document statistics for admin use.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Admin Dashboard."
+        },
+        "totalDocumentCompared": {
+          "type": "number",
+          "description": "Total number of documents compared so far"
+        },
+        "totalNewDocumentsAdded": {
+          "type": "number",
+          "description": "Total number of new documents added."
+        },
+        "dateCreated": {
+          "type": "string",
+          "description": "Date and time when the dashboard was first created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "totalDocumentCompared",
+        "totalNewDocumentsAdded",
+        "dateCreated"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Access control is based on the `userId`. Includes the Firebase `uid` for authentication purposes.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/documents/{documentId}",
+        "definition": {
+          "entityName": "Document",
+          "schema": {
+            "$ref": "#/backend/entities/Document"
+          },
+          "description": "Stores documents uploaded by users. Access control is based on the `userId` and `documentId`. This path enables path-based access control, ensuring only the user can access their documents.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "documentId",
+              "description": "The unique identifier for the document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}",
+        "definition": {
+          "entityName": "VerificationCheck",
+          "schema": {
+            "$ref": "#/backend/entities/VerificationCheck"
+          },
+          "description": "Stores verification checks performed on documents. Access control is based on the `userId`, `documentId`, and `verificationCheckId`. This continues the path-based access control from the parent document.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "documentId",
+              "description": "The unique identifier for the document."
+            },
+            {
+              "name": "verificationCheckId",
+              "description": "The unique identifier for the verification check."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{uid}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Collection to store admin roles. The existence of a document with a specific `uid` in this collection grants admin privileges to that user.",
+          "params": [
+            {
+              "name": "uid",
+              "description": "The Firebase user ID of the admin."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admin_dashboards/{dashboardId}",
+        "definition": {
+          "entityName": "AdminDashboard",
+          "schema": {
+            "$ref": "#/backend/entities/AdminDashboard"
+          },
+          "description": "Stores admin dashboard data. Access to this collection is restricted to users with admin privileges.",
+          "params": [
+            {
+              "name": "dashboardId",
+              "description": "Unique identifier for the admin dashboard."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support DuckVerify's document verification process for students, universities, and companies, focusing on secure authentication and efficient data management. It incorporates denormalization to ensure authorization independence and facilitate atomic operations. The structure utilizes path-based ownership and membership maps for access control.\n\n**Authorization Independence:**\n\n*   User documents are stored directly under `/users/{userId}`, enabling straightforward, path-based access control.\n*   Documents are stored under `/users/{userId}/documents/{documentId}`. Each document contains the `userId` to explicitly link it to its owner, avoiding the need for `get()` calls to parent documents for authorization. Similarly VerificationChecks include the `documentId` avoiding `get()` calls.\n\n**QAPs (Rules are not Filters):**\n\n*   Data segregation: Each user type (student, university, company) has its own dedicated space under `/users/{userId}`, ensuring that different user types do not share the same collections and associated security rules. This segregation is also applied at the subcollection level (e.g., documents, verification checks).\n\n**Global Roles:**\n\n*   Admin roles are managed through the `/roles_admin/{uid}` collection. The existence of a document in this collection grants admin privileges.\n\n**Admin Dashboard:**\n\n*   AdminDashboard documents are stored in the `/admin_dashboards/{dashboardId}` collection.  Access to this collection is restricted to users with admin privileges, verified through the `/roles_admin/{uid}` collection."
+  }
+}

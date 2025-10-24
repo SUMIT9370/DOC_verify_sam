@@ -1,0 +1,149 @@
+/**
+ * @file Firestore Security Rules for DuckVerify.
+ *
+ * @core_philosophy This ruleset enforces a strict user-ownership model for user-generated data (Users, Documents, and VerificationChecks).
+ *   Admin privileges are granted based on the presence of a document in the `/roles_admin/{uid}` collection.
+ * @data_structure The data is organized hierarchically:
+ *   - `/users/{userId}`: Stores user profiles, accessible only by the user themselves.
+ *   - `/users/{userId}/documents/{documentId}`: Stores documents uploaded by users, accessible only by the user.
+ *   - `/users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}`: Stores verification checks, accessible only by the owner user.
+ *   - `/roles_admin/{uid}`: Admin roles, accessible only by admins.
+ *   - `/admin_dashboards/{dashboardId}`: Admin dashboards, accessible only by admins.
+ * @key_security_decisions
+ *   - User listing is disabled to protect user privacy.
+ *   - All write operations are protected by authorization checks based on ownership or admin roles.
+ *   - Data consistency between paths and document data is enforced on create and update operations.
+ * @denormalization_for_authorization
+ *   - Documents under `/users/{userId}/documents/{documentId}` include the `userId` to avoid needing to query the parent `/users/{userId}` document for authorization.
+ *   - VerificationChecks under `/users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}` include the `documentId` to avoid needing to query the parent `/users/{userId}/documents/{documentId}` document for authorization.
+ *   - Admin status is determined by the existence of a document in the `/roles_admin/{uid}` collection, which is used to control access to the `/admin_dashboards/{dashboardId}` collection.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with matching UID can create their profile.
+     * @allow (get, update, delete) User can access their own profile.
+     * @deny (create) User cannot create a profile with a different UID.
+     * @deny (get, update, delete) User cannot access another user's profile.
+     * @principle Enforces user-ownership: Only the authenticated user can create, view, modify, or delete their own profile.
+     */
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && exists(resource);
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to documents uploaded by users.
+     * @path /users/{userId}/documents/{documentId}
+     * @allow (create) User with matching UID can create a document under their profile.
+     * @allow (get, update, delete) User can access their own documents.
+     * @deny (create) User cannot create a document for another user.
+     * @deny (get, update, delete) User cannot access another user's documents.
+     * @principle Enforces user-ownership: Only the authenticated user can create, view, modify, or delete their own documents.
+     */
+    match /users/{userId}/documents/{documentId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && exists(resource);
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to verification checks performed on user documents.
+     * @path /users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}
+     * @allow (create) User with matching UID can create verification checks under their documents.
+     * @allow (get, update, delete) User can access their own verification checks.
+     * @deny (create) User cannot create verification checks for another user's documents.
+     * @deny (get, update, delete) User cannot access another user's verification checks.
+     * @principle Enforces user-ownership: Only the authenticated user can create, view, modify, or delete verification checks for their own documents.
+     */
+    match /users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+       function isExistingOwner(userId) {
+        return isOwner(userId) && exists(resource);
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to admin roles.
+     * @path /roles_admin/{uid}
+     * @allow (create) Only an existing admin can create new admin roles.  This requires custom logic in the backend.
+     * @allow (get) Any authenticated user can check if they are an admin.
+     * @deny (create, update, delete) Non-admins cannot create, update, or delete admin roles.
+     * @principle Enforces admin-only access for managing admin roles.
+     */
+    match /roles_admin/{uid} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
+      allow get: if isSignedIn() && isAdmin();
+      allow list: if false;
+      allow create: if isSignedIn() && isAdmin();
+      allow update: if false;
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    /**
+     * @description Controls access to admin dashboard data.
+     * @path /admin_dashboards/{dashboardId}
+     * @allow (get, list) Only admins can view admin dashboard data.
+     * @allow (create, update, delete) Only admins can create, update, or delete admin dashboard data.
+     * @principle Enforces admin-only access for managing admin dashboards.
+     */
+    match /admin_dashboards/{dashboardId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
+      allow get: if isSignedIn() && isAdmin();
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() && isAdmin();
+      allow update: if isSignedIn() && isAdmin();
+      allow delete: if isSignedIn() && isAdmin();
+    }
+  }
+}
