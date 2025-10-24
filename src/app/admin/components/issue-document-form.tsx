@@ -17,6 +17,8 @@ import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const formSchema = z.object({
   studentName: z.string().min(1, { message: 'Student name is required.' }),
@@ -51,23 +53,24 @@ export function IssueDocumentForm() {
         return;
     }
 
-    try {
-      const mastersCollection = collection(firestore, 'document_masters');
-      await addDoc(mastersCollection, values);
+    const mastersCollection = collection(firestore, 'document_masters');
+    addDoc(mastersCollection, values)
+      .then(() => {
+        toast({
+          title: 'Success!',
+          description: 'New document master has been issued and saved.',
+        });
+        form.reset();
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: mastersCollection.path,
+          operation: 'create',
+          requestResourceData: values,
+        });
 
-      toast({
-        title: 'Success!',
-        description: 'New document master has been issued and saved.',
+        errorEmitter.emit('permission-error', permissionError);
       });
-      form.reset();
-    } catch (error) {
-      console.error("Error saving document master: ", error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save the document master. Please try again.',
-        variant: 'destructive',
-      });
-    }
   }
 
   return (

@@ -8,6 +8,8 @@ import { useFirestore } from '@/firebase';
 import { extractDocumentData, type ExtractDocumentDataOutput } from '@/ai/flows/extract-document-data';
 import { collection, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type FileWithPreview = File & {
   preview: string;
@@ -67,26 +69,41 @@ export function MasterUploader() {
 
       // Save to Firestore, including the data URI of the image
       const mastersCollection = collection(firestore, 'document_masters');
-      await addDoc(mastersCollection, {
+      const dataToSave = {
         ...extractedData,
         documentDataUri: dataUri 
-      });
+      };
 
-      toast({
-        title: 'Success!',
-        description: 'Document master has been processed and saved.',
-        variant: 'default',
-      });
-      setFile(null);
+      addDoc(mastersCollection, dataToSave)
+        .then(() => {
+          toast({
+            title: 'Success!',
+            description: 'Document master has been processed and saved.',
+            variant: 'default',
+          });
+          setFile(null);
+          setIsProcessing(false);
+        })
+        .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: mastersCollection.path,
+                operation: 'create',
+                requestResourceData: dataToSave,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            // We don't need to set local error state here as the global listener will throw
+            setIsProcessing(false);
+        });
+
     } catch (e: any) {
+      // This will catch errors from the AI flow or file reading
       console.error(e);
-      setError('Failed to process the document. Please try again.');
+      setError('Failed to process the document with AI. Please try again.');
        toast({
-          title: 'Error',
-          description: 'Failed to process and save the document master.',
+          title: 'Processing Error',
+          description: 'Failed to process the document with AI. Please try again.',
           variant: 'destructive',
         });
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -108,7 +125,7 @@ export function MasterUploader() {
       )
   }
 
-  if (result) {
+  if (result && !isProcessing) {
     return (
         <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg text-center h-full bg-green-50 dark:bg-green-900/20 border-green-500">
             <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400 mb-4" />
