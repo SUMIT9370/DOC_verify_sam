@@ -10,6 +10,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { extractDocumentData } from './extract-document-data';
+import { findMasterDocument } from '../tools/find-master-document';
 
 const VerifyDocumentInputSchema = z.object({
   documentDataUri: z
@@ -21,8 +23,8 @@ const VerifyDocumentInputSchema = z.object({
 export type VerifyDocumentInput = z.infer<typeof VerifyDocumentInputSchema>;
 
 const VerifyDocumentOutputSchema = z.object({
-  isAuthentic: z.boolean().describe('Whether or not the document is authentic.'),
-  verificationDetails: z.string().describe('Detailed information about the verification process.'),
+  isAuthentic: z.boolean().describe('Whether or not the document is authentic based on database comparison and visual checks.'),
+  verificationDetails: z.string().describe('Detailed information about the verification process, including the result of the database lookup and visual analysis.'),
   extractedText: z.string().optional().describe('The extracted text from the image, if available.'),
   qrVerificationResult: z.boolean().optional().describe('The QR verification result, if available.'),
   textAlignmentCheck: z.boolean().optional().describe('The text alignment verification result, if available.'),
@@ -39,20 +41,21 @@ const verifyDocumentPrompt = ai.definePrompt({
   name: 'verifyDocumentPrompt',
   input: {schema: VerifyDocumentInputSchema},
   output: {schema: VerifyDocumentOutputSchema},
-  prompt: `You are an AI expert in document verification. Analyze the document image and determine if it is authentic.
+  tools: [extractDocumentData, findMasterDocument],
+  prompt: `You are an AI expert in document verification for DocVerify. Your primary goal is to determine if a user-uploaded document is authentic by comparing it against official master documents stored in a database.
 
-  Consider the following factors:
-  - Text extracted from the image using OCR.
-  - Comparison with a database of known valid documents.
-  - Text alignment.
-  - Presence and validity of watermarks and hall-marks.
+Follow these steps:
+1.  **Extract Data**: First, use the 'extractDocumentData' tool on the provided document image to get structured data (student name, university, degree, issue date).
+2.  **Find Master Document**: Next, use the 'findMasterDocument' tool with the extracted data to search for a matching official document in the database.
+3.  **Analyze and Compare**:
+    *   **If a master document is found**: The document is likely authentic. State that a matching record was found in the database and mention any minor discrepancies in the visual analysis (text alignment, watermarks, hallmarks).
+    *   **If NO master document is found**: The document is likely FAKE. State clearly that NO matching record was found in the official database. This is the most important factor.
+    *   **Visual Checks**: Also perform a visual analysis of the document for text alignment, watermarks, and hallmarks, and report your findings. The database result is the primary determinant of authenticity.
 
-  Respond with a determination of authenticity, along with detailed verification information.
+Your final response must be a JSON object with 'isAuthentic' and 'verificationDetails'. The 'isAuthentic' field should be 'true' ONLY if a matching master document is found.
 
-  Image: {{media url=documentDataUri}}
-  Given your analysis, determine if the document is authentic. Return a structured JSON object that indicates whether the document is authentic, provides details of the verification process, and, if possible, the extracted text. Always return verificationDetails.
-  Remember to analyze watermarks, hallmarks, and text alignment.
-  `,
+Image: {{media url=documentDataUri}}
+`,
 });
 
 const verifyDocumentFlow = ai.defineFlow(
