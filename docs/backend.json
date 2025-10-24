@@ -207,6 +207,47 @@
         "totalNewDocumentsAdded",
         "dateCreated"
       ]
+    },
+    "VerificationHistory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VerificationHistory",
+      "type": "object",
+      "description": "Represents a single document verification history record for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the history record."
+        },
+        "documentName": {
+          "type": "string",
+          "description": "The name of the verified document."
+        },
+        "documentUrl": {
+          "type": "string",
+          "description": "The Firebase Storage URL for the uploaded document image.",
+          "format": "uri"
+        },
+        "isAuthentic": {
+          "type": "boolean",
+          "description": "The result of the verification (true if authentic, false otherwise)."
+        },
+        "verificationDetails": {
+          "type": "string",
+          "description": "A summary of the verification findings."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time the verification was performed.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "documentName",
+        "documentUrl",
+        "isAuthentic",
+        "verificationDetails",
+        "timestamp"
+      ]
     }
   },
   "auth": {
@@ -234,21 +275,21 @@
         }
       },
       {
-        "path": "/users/{userId}/documents/{documentId}",
+        "path": "/users/{userId}/verification_history/{historyId}",
         "definition": {
-          "entityName": "Document",
+          "entityName": "VerificationHistory",
           "schema": {
-            "$ref": "#/backend/entities/Document"
+            "$ref": "#/backend/entities/VerificationHistory"
           },
-          "description": "Stores documents uploaded by users. Access control is based on the `userId` and `documentId`. This path enables path-based access control, ensuring only the user can access their documents.",
+          "description": "Stores verification history for a user. Access is restricted to the user who owns the history.",
           "params": [
             {
               "name": "userId",
               "description": "The unique identifier for the user."
             },
             {
-              "name": "documentId",
-              "description": "The unique identifier for the document."
+              "name": "historyId",
+              "description": "The unique identifier for the history record."
             }
           ]
         }
@@ -265,30 +306,6 @@
             {
               "name": "masterId",
               "description": "The unique identifier for the master document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/documents/{documentId}/verificationChecks/{verificationCheckId}",
-        "definition": {
-          "entityName": "VerificationCheck",
-          "schema": {
-            "$ref": "#/backend/entities/VerificationCheck"
-          },
-          "description": "Stores verification checks performed on documents. Access control is based on the `userId`, `documentId`, and `verificationCheckId`. This continues the path-based access control from the parent document.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "documentId",
-              "description": "The unique identifier for the document."
-            },
-            {
-              "name": "verificationCheckId",
-              "description": "The unique identifier for the verification check."
             }
           ]
         }
@@ -326,7 +343,7 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support DocVerify's document verification process for students, universities, and companies, focusing on secure authentication and efficient data management. It incorporates denormalization to ensure authorization independence and facilitate atomic operations. The structure utilizes path-based ownership and membership maps for access control.\n\n**Authorization Independence:**\n\n*   User documents are stored directly under `/users/{userId}`, enabling straightforward, path-based access control.\n*   Documents are stored under `/users/{userId}/documents/{documentId}`. Each document contains the `userId` to explicitly link it to its owner, avoiding the need for `get()` calls to parent documents for authorization. Similarly VerificationChecks include the `documentId` avoiding `get()` calls.\n*   Master documents are stored in `/document_masters/{masterId}`. This top-level collection is secured by rules that only allow admin access.\n\n**QAPs (Rules are not Filters):**\n\n*   Data segregation: Each user type (student, university, company) has its own dedicated space under `/users/{userId}`, ensuring that different user types do not share the same collections and associated security rules. This segregation is also applied at the subcollection level (e.g., documents, verification checks).\n\n**Global Roles:**\n\n*   Admin roles are managed through the `/roles_admin/{uid}` collection. The existence of a document in this collection grants admin privileges.\n\n**Admin Dashboard:**\n\n*   AdminDashboard documents are stored in the `/admin_dashboards/{dashboardId}` collection.  Access to this collection is restricted to users with admin privileges, verified through the `/roles_admin/{uid}` collection."
+    "reasoning": "The Firestore structure is designed to support DocVerify's document verification process for students, universities, and companies, focusing on secure authentication and efficient data management. It incorporates denormalization to ensure authorization independence and facilitate atomic operations. The structure utilizes path-based ownership and membership maps for access control.\n\n**Authorization Independence:**\n\n*   User documents are stored directly under `/users/{userId}`, enabling straightforward, path-based access control.\n*   Verification history is stored under `/users/{userId}/verification_history/{historyId}`. This path-based ownership ensures a user can only access their own history.\n*   Master documents are stored in `/document_masters/{masterId}`. This top-level collection is secured by rules that only allow admin access.\n\n**QAPs (Rules are not Filters):**\n\n*   Data segregation: Each user type (student, university, company) has its own dedicated space under `/users/{userId}`, ensuring that different user types do not share the same collections and associated security rules. This segregation is also applied at the subcollection level (e.g., documents, verification checks).\n\n**Global Roles:**\n\n*   Admin roles are managed through the `/roles_admin/{uid}` collection. The existence of a document in this collection grants admin privileges.\n\n**Admin Dashboard:**\n\n*   AdminDashboard documents are stored in the `/admin_dashboards/{dashboardId}` collection.  Access to this collection is restricted to users with admin privileges, verified through the `/roles_admin/{uid}` collection."
   }
 }
     
