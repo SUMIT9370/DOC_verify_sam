@@ -8,7 +8,9 @@ export default function Footer() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div className="space-y-4">
                     <Link href="/" className="flex items-center gap-2" prefetch={false}>
-                        <Image src="/logo.png" alt="DocVerify Logo" width={32} height={32} />
+                        <div className="bg-white rounded-full p-1">
+                          <Image src="/logo.png" alt="DocVerify Logo" width={32} height={32} />
+                        </div>
                         <span className="text-xl font-bold font-headline">DocVerify</span>
                     </Link>
                     <p className="text-sm text-muted-foreground">

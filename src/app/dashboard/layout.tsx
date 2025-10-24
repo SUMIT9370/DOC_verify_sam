@@ -65,7 +65,9 @@ export default function DashboardLayout({
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="DocVerify Logo" width={48} height={48} />
+              <div className="bg-white rounded-full p-1">
+                <Image src="/logo.png" alt="DocVerify Logo" width={40} height={40} />
+              </div>
               <div className="flex flex-col">
                 <h2 className="text-lg font-semibold font-headline text-sidebar-foreground">
                   DocVerify

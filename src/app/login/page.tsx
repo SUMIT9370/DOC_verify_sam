@@ -18,7 +18,9 @@ export default function LoginPage() {
           className="flex items-center justify-center gap-2 mb-6"
           prefetch={false}
         >
-          <Image src="/logo.png" alt="DocVerify Logo" width={48} height={48} />
+          <div className="bg-white rounded-full p-1">
+            <Image src="/logo.png" alt="DocVerify Logo" width={40} height={40} />
+          </div>
           <span className="text-2xl font-bold font-headline">DocVerify</span>
         </Link>
         <Card className="shadow-2xl">
