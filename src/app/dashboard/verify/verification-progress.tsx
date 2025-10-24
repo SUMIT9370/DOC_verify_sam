@@ -15,13 +15,11 @@ import {
   Loader2,
   XCircle,
   AlertTriangle,
-  UploadCloud as UploadCloudIcon
 } from 'lucide-react';
 import type { VerifyDocumentOutput } from '@/ai/flows/document-verification-ai';
 import { verifyDocument } from '@/ai/flows/document-verification-ai';
 import { cn } from '@/lib/utils';
-import { useAuth, useFirestore, useUser } from '@/firebase';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp, addDoc } from 'firebase/firestore';
 
 interface VerificationProgressProps {
@@ -31,13 +29,12 @@ interface VerificationProgressProps {
 
 type VerificationStep = {
   name: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
   icon: React.ReactNode;
 };
 
 const initialSteps: VerificationStep[] = [
-  { name: 'Uploading Securely', status: 'pending', icon: <UploadCloudIcon className="h-5 w-5" /> },
-  { name: 'Extracting Text (OCR)', status: 'pending', icon: <FileText className="h-5 w-5" /> },
+  { name: 'Analyzing Document with AI', status: 'pending', icon: <FileText className="h-5 w-5" /> },
   { name: 'Verifying QR/Barcode', status: 'pending', icon: <ScanQrCode className="h-5 w-5" /> },
   { name: 'Analyzing Text Alignment', status: 'pending', icon: <AlignHorizontalDistributeCenter className="h-5 w-5" /> },
   { name: 'Detecting Watermark', status: 'pending', icon: <BadgeCheck className="h-5 w-5" /> },
@@ -74,30 +71,12 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
       }
       
       try {
-        // 1. Upload to Storage
-        setSteps(prev => {
-            const newSteps = [...prev];
-            newSteps[0].status = 'running';
-            return newSteps;
-        });
-        setProgress(1 * (100 / (initialSteps.length + 1)));
-
-        const storage = getStorage();
-        const storageRef = ref(storage, `user_uploads/${user.uid}/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
-        
-        setSteps(prev => {
-            const newSteps = [...prev];
-            newSteps[0].status = 'completed';
-            return newSteps;
-        });
-        
-        // 2. Get Data URI for AI
+        // STEP 1: Get Data URI for AI
+        setProgress(5);
         const dataUri = await fileToDataUri(file);
         
-        // 3. Simulate step-by-step progress for better UX
-        for (let i = 1; i < initialSteps.length; i++) {
+        // STEP 2: Simulate step-by-step progress for better UX
+        for (let i = 0; i < initialSteps.length; i++) {
           await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
           setSteps(prev => {
             const newSteps = [...prev];
@@ -105,18 +84,18 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
             newSteps[i].status = 'running';
             return newSteps;
           });
-          setProgress((i + 1) * (100 / (initialSteps.length + 1) ));
+          setProgress(10 + (i + 1) * (90 / initialSteps.length));
         }
 
-        // 4. Call AI verification flow
+        // STEP 3: Call AI verification flow
         const aiResult = await verifyDocument({ documentDataUri: dataUri });
         setResult(aiResult);
         
-        // 5. Save result to Firestore
+        // STEP 4: Save result to Firestore (without documentUrl)
         const historyCollection = collection(firestore, 'users', user.uid, 'verification_history');
         await addDoc(historyCollection, {
             documentName: file.name,
-            documentUrl: downloadURL,
+            documentUrl: '', // No URL since we are not uploading to storage
             isAuthentic: aiResult.isAuthentic,
             verificationDetails: aiResult.verificationDetails,
             timestamp: serverTimestamp()
@@ -146,6 +125,8 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       case 'failed':
         return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'skipped':
+        return <div className="h-5 w-5 rounded-full border-2 border-dashed border-muted-foreground" />;
       case 'pending':
       default:
         return <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />;
