@@ -8,32 +8,63 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { GovIndiaLogo } from '@/components/icons/gov-india-logo';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const auth = useAuth();
+  const firestore = useFirestore();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [email, setEmail] = useState('admin@duckverify.gov.in');
+  const [password, setPassword] = useState('password');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // IMPORTANT: This is a temporary, insecure login for demonstration.
-    // In a real application, you would use a secure authentication service.
-    if (email === 'admin@duckverify.gov.in' && password === 'password') {
-      sessionStorage.setItem('isAdminAuthenticated', 'true');
-      toast({
-        title: 'Login Successful',
-        description: 'Redirecting to the admin dashboard.',
-      });
-      router.push('/admin');
-    } else {
-      setError('Invalid Email or Password.');
-      toast({
-        title: 'Login Failed',
-        description: 'Invalid credentials. Please try again.',
-        variant: 'destructive',
-      });
+    setIsLoading(true);
+    setError('');
+
+    if (!auth || !firestore) {
+      setError('Firebase is not initialized. Please try again later.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // After successful sign-in, check if the user is an admin.
+      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+      const adminDoc = await getDoc(adminRoleRef);
+
+      if (adminDoc.exists()) {
+        // User is an admin, proceed to dashboard
+        sessionStorage.setItem('isAdminAuthenticated', 'true');
+        toast({
+          title: 'Login Successful',
+          description: 'Redirecting to the admin dashboard.',
+        });
+        router.push('/admin');
+      } else {
+        // User is not an admin
+        setError('You do not have permission to access the admin area.');
+        await auth.signOut(); // Sign out the non-admin user
+      }
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setError('Invalid email or password. Please create this user in Firebase Auth first.');
+      } else {
+        setError('An unexpected error occurred during login.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -78,7 +109,8 @@ export default function AdminLoginPage() {
                 />
               </div>
               {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-              <Button type="submit" className="w-full font-bold">
+              <Button type="submit" className="w-full font-bold" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
               </Button>
             </form>
