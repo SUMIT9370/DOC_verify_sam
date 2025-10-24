@@ -12,7 +12,7 @@ import { GovIndiaLogo } from '@/components/icons/gov-india-logo';
 export default function AdminLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [adminId, setAdminId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
     e.preventDefault();
     // IMPORTANT: This is a temporary, insecure login for demonstration.
     // In a real application, you would use a secure authentication service.
-    if (adminId === 'admin' && password === 'password') {
+    if (email === 'admin@duckverify.gov.in' && password === 'password') {
       sessionStorage.setItem('isAdminAuthenticated', 'true');
       toast({
         title: 'Login Successful',
@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
       });
       router.push('/admin');
     } else {
-      setError('Invalid Admin ID or Password.');
+      setError('Invalid Email or Password.');
       toast({
         title: 'Login Failed',
         description: 'Invalid credentials. Please try again.',
@@ -56,13 +56,14 @@ export default function AdminLoginPage() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="adminId">Admin ID</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="adminId"
-                  placeholder="admin"
-                  value={adminId}
-                  onChange={(e) => setAdminId(e.target.value)}
+                  id="email"
+                  placeholder="admin@duckverify.gov.in"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
+                  type="email"
                 />
               </div>
               <div className="space-y-2">

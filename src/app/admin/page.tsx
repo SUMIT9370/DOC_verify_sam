@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { MasterUploader } from "./components/master-uploader";
 import { IssueDocumentForm } from "./components/issue-document-form";
 import { Button } from '@/components/ui/button';
+import { BookUser, FileCheck2, FileUp } from 'lucide-react';
 
 export default function AdminPage() {
     const router = useRouter();
@@ -34,57 +35,61 @@ export default function AdminPage() {
                     </div>
                     <Button onClick={handleLogout} variant="outline">Logout</Button>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Verified Documents (Today)</CardTitle>
+                            <FileCheck2 className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">23,498</div>
+                            <p className="text-xs text-muted-foreground">+12.5% from last week</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Issued Masters (All Time)</CardTitle>
+                            <BookUser className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">1,230</div>
+                             <p className="text-xs text-muted-foreground">+50 since last month</p>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Total Verifications (All Time)</CardTitle>
+                            <FileUp className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">6.2 Billion+</div>
+                             <p className="text-xs text-muted-foreground">Across 2,500+ institutions</p>
+                        </CardContent>
+                    </Card>
+                </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                    <div className="space-y-6">
-                        <Card className="h-full">
-                            <CardHeader>
-                                <CardTitle>AI-Powered Master Upload</CardTitle>
-                                <CardDescription>
-                                    Upload a document image. The AI will extract the data and save it as a master template.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <MasterUploader />
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Issue New Document Manually</CardTitle>
-                                <CardDescription>
-                                    Fill out the form to create a new master document record in the database.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <IssueDocumentForm />
-                            </CardContent>
-                        </Card>
-                    </div>
-
                     <Card>
                         <CardHeader>
-                            <CardTitle>Platform Statistics</CardTitle>
+                            <CardTitle>AI-Powered Master Upload</CardTitle>
                             <CardDescription>
-                                Overview of all verifications performed on DuckVerify.
+                                Upload a document image. The AI will extract the data and save it as a master template.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                           <div className="flex justify-between items-center">
-                                <span className="font-medium">Total Verifications Today</span>
-                                <span className="font-bold text-2xl text-primary">23,498</span>
-                           </div>
-                            <div className="flex justify-between items-center">
-                                <span className="font-medium">Total Fakes Detected (All Time)</span>
-                                <span className="font-bold text-2xl text-destructive">1,102,334</span>
-                           </div>
-                           <div className="flex justify-between items-center">
-                                <span className="font-medium">Active University Partners</span>
-                                <span className="font-bold text-2xl">856</span>
-                           </div>
-                           <div className="flex justify-between items-center">
-                                <span className="font-medium">Master Templates in DB</span>
-                                <span className="font-bold text-2xl">1,230</span>
-                           </div>
+                        <CardContent>
+                            <MasterUploader />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Issue New Document Manually</CardTitle>
+                            <CardDescription>
+                                Fill out the form to create a new master document record in the database.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <IssueDocumentForm />
                         </CardContent>
                     </Card>
                 </div>
