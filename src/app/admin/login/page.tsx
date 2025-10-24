@@ -9,9 +9,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -21,6 +32,7 @@ export default function AdminLoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,12 +51,10 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // After successful sign-in, check if the user is an admin by checking their profile.
       const userDocRef = doc(firestore, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists() && userDoc.data()?.isAdmin === true) {
-        // User is an admin, proceed to dashboard
         sessionStorage.setItem('isAdminAuthenticated', 'true');
         toast({
           title: 'Login Successful',
@@ -52,12 +62,10 @@ export default function AdminLoginPage() {
         });
         router.push('/admin');
       } else {
-        // User is not an admin
         setError('You do not have permission to access the admin area.');
-        await auth.signOut(); // Sign out the non-admin user
+        await auth.signOut();
       }
     } catch (error: any) {
-      // Catch specific Firebase auth errors for better user feedback
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         setError('Invalid email or password. Please try again.');
       } else {
@@ -66,6 +74,30 @@ export default function AdminLoginPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!auth || !resetEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'Email Required',
+        description: 'Please enter your email address to reset your password.',
+      });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `An email has been sent to ${resetEmail} with instructions to reset your password.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error Sending Email',
+        description: 'Could not send password reset email. Please check the address and try again.',
+      });
     }
   };
 
@@ -101,7 +133,37 @@ export default function AdminLoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <button type="button" onClick={() => setResetEmail(email)} className="text-xs text-primary hover:underline">Forgot Password?</button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reset Your Password</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Enter your email address below and we will send you a link to reset your password.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email">Email</Label>
+                        <Input
+                          id="reset-email"
+                          placeholder="admin@example.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          required
+                          type="email"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handlePasswordReset}>Send Reset Link</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
                 <Input
                   id="password"
                   type="password"
