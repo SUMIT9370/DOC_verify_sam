@@ -27,7 +27,7 @@ import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignUp, initiateSignInWithRedirect } from '@/firebase/non-blocking-login';
 import { GithubAuthProvider, GoogleAuthProvider, User } from 'firebase/auth';
 import { useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, writeBatch } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -88,10 +88,17 @@ export function SignUpForm() {
             photoURL: firebaseUser.photoURL,
             userType: form.getValues('userType'),
         };
+
+        const batch = writeBatch(firestore);
+
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        batch.set(userDocRef, userProfile, { merge: true });
+
+        // Grant admin role upon signup
+        const adminRoleRef = doc(firestore, 'roles_admin', firebaseUser.uid);
+        batch.set(adminRoleRef, { uid: firebaseUser.uid, role: 'admin' });
         
-        // Create the user profile document
-        await setDoc(userDocRef, userProfile, { merge: true });
+        await batch.commit();
         
         router.push('/dashboard');
       }

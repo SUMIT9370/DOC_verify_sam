@@ -58,8 +58,8 @@ export default function AdminLoginPage() {
       }
     } catch (error: any) {
       console.error(error);
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setError('Invalid email or password. Please go to the Firebase Authentication console and create this user first.');
+      if (error.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
       } else {
         setError('An unexpected error occurred during login.');
       }
