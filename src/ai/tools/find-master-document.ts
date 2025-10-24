@@ -1,14 +1,11 @@
 'use server';
 
 /**
- * @fileOverview A Genkit tool for finding a master document in Firestore.
+ * @fileOverview A Genkit tool for finding a master document by fetching from a local API endpoint.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { credential } from 'firebase-admin';
 
 // Define the input schema for the tool using Zod
 const MasterDocumentQuerySchema = z.object({
@@ -17,22 +14,17 @@ const MasterDocumentQuerySchema = z.object({
   universityName: z.string().optional().describe("The name of the university to search for."),
 });
 
-// Initialize Firebase Admin SDK if not already initialized
-let adminApp: App;
-if (!getApps().length) {
-  adminApp = initializeApp({
-    credential: credential.applicationDefault(),
-  });
-} else {
-  adminApp = getApps()[0];
-}
+// This is the URL of our Next.js API route. We assume it's running on the same host.
+// In a real production environment, this would be a configured URL.
+const API_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://your-production-url.com/api/find-master' // Replace with your actual production URL
+    : 'http://localhost:9002/api/find-master';
 
-const db = getFirestore(adminApp);
 
 export const findMasterDocument = ai.defineTool(
   {
     name: 'findMasterDocument',
-    description: 'Searches the Firestore database for a matching master educational document based on extracted fields.',
+    description: 'Searches for a matching master educational document by calling an API endpoint with extracted fields.',
     inputSchema: MasterDocumentQuerySchema,
     outputSchema: z.object({
         found: z.boolean().describe('Whether a matching document was found.'),
@@ -40,42 +32,30 @@ export const findMasterDocument = ai.defineTool(
     }),
   },
   async (input) => {
-    console.log('Searching for master document with input:', input);
+    console.log('Calling API to find master document with input:', input);
     
-    const mastersRef = db.collection('document_masters');
-    
-    // Build the query dynamically based on the input fields provided by the LLM
-    let query: FirebaseFirestore.Query = mastersRef;
-    if (input.studentName) {
-        query = query.where('documentData.studentName', '==', input.studentName);
-    }
-    if (input.degreeName) {
-        query = query.where('documentData.degreeName', '==', input.degreeName);
-    }
-    if (input.universityName) {
-        query = query.where('documentData.universityName', '==', input.universityName);
-    }
-
     try {
-      const snapshot = await query.limit(1).get();
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input),
+      });
 
-      if (snapshot.empty) {
-        console.log('No matching master document found.');
-        return { found: false };
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API call failed with status ${response.status}:`, errorText);
+        return { found: false, data: { error: `API error: ${errorText}` } };
       }
 
-      const docData = snapshot.docs[0].data();
-      // We don't want to return the full image data URI in the tool response
-      // as it's very large and not needed by the LLM.
-      delete docData.documentDataUri;
+      const result = await response.json();
+      console.log('Received response from API:', result);
+      return result;
 
-      console.log('Found matching master document:', docData);
-      return { found: true, data: docData };
-
-    } catch (error) {
-      console.error("Error accessing Firestore: ", error);
-      // It's important to return a structured response even on error
-      return { found: false, data: { error: 'Failed to query the database.' }};
+    } catch (error: any) {
+      console.error("Error fetching from find-master API: ", error);
+      return { found: false, data: { error: `Failed to query the database via API. ${error.message}` }};
     }
   }
 );
