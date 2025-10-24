@@ -9,6 +9,7 @@ import {
   User,
   LogOut,
   Settings,
+  Shield,
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -28,6 +29,7 @@ import { GovIndiaLogo } from '@/components/icons/gov-india-logo';
 import { useAuth, useUser } from '@/firebase';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import AuthGuard from '@/components/auth-guard';
+import { useAdmin } from '@/hooks/use-admin';
 
 export default function DashboardLayout({
   children,
@@ -38,12 +40,17 @@ export default function DashboardLayout({
   const auth = useAuth();
   const { user } = useUser();
   const router = useRouter();
+  const { isAdmin } = useAdmin();
 
   const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/verify', label: 'Verify Documents', icon: FileScan },
     { href: '/dashboard/history', label: 'History', icon: History },
   ];
+
+  if (isAdmin) {
+    menuItems.push({ href: '/admin', label: 'Admin', icon: Shield });
+  }
 
   const handleLogout = async () => {
     await auth.signOut();
