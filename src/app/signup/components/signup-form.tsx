@@ -79,7 +79,7 @@ export function SignUpForm() {
 
   useEffect(() => {
     if (!isUserLoading && user && firestore) {
-      const createProfileAndBootstrapAdmin = async (firebaseUser: User) => {
+      const createUserProfile = async (firebaseUser: User) => {
         const userProfile = {
             id: firebaseUser.uid,
             uid: firebaseUser.uid,
@@ -89,22 +89,13 @@ export function SignUpForm() {
             userType: form.getValues('userType'),
         };
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        const adminRoleRef = doc(firestore, 'roles_admin', firebaseUser.uid);
-
+        
         // Create the user profile document
         await setDoc(userDocRef, userProfile, { merge: true });
-
-        // IMPORTANT: This creates the admin role document.
-        // This will only succeed because we temporarily opened up the security rules.
-        try {
-          await setDoc(adminRoleRef, { uid: firebaseUser.uid, role: 'admin' });
-        } catch (e) {
-            console.error("Could not create admin role, this is expected if rules are not temporary open.", e);
-        }
         
         router.push('/dashboard');
       }
-      createProfileAndBootstrapAdmin(user);
+      createUserProfile(user);
     }
   }, [user, isUserLoading, router, firestore, form]);
 
