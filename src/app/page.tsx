@@ -60,7 +60,7 @@ export default function Home() {
         <section className="w-full py-12 md:py-24 lg:py-32 bg-background">
           <div className="container px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-[1fr_500px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-              <div className="flex flex-col justify-center space-y-4">
+              <div className="flex flex-col justify-center space-y-4 animate-fade-in-up">
                 <div className="space-y-4">
                   <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
                     Authentic, Digital, Verified.
@@ -84,7 +84,7 @@ export default function Home() {
                 height={400}
                 alt="Digital Document Verification"
                 data-ai-hint="document verification abstract"
-                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
+                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last animate-fade-in"
               />
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function Home() {
 
         <section id="how-it-works" className="w-full py-12 md:py-24 lg:py-32">
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12 animate-fade-in-up">
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">How It Works</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
@@ -102,7 +102,7 @@ export default function Home() {
             </div>
             <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:max-w-none lg:grid-cols-3">
               {howItWorks.map((feature, index) => (
-                 <div key={index} className="flex flex-col items-center text-center gap-4 p-4">
+                 <div key={index} className="flex flex-col items-center text-center gap-4 p-4 animate-fade-in-up" style={{ animationDelay: `${index * 150}ms`}}>
                   {feature.icon}
                   <h3 className="text-xl font-bold font-headline">{feature.title}</h3>
                   <p className="text-muted-foreground">{feature.description}</p>
@@ -116,7 +116,7 @@ export default function Home() {
           <div className="container px-4 md:px-6">
              <div className="mx-auto grid max-w-5xl items-center gap-8 sm:grid-cols-3 md:gap-12">
                  {stats.map((stat, index) => (
-                    <div key={index} className="flex flex-col items-center text-center gap-2">
+                    <div key={index} className="flex flex-col items-center text-center gap-2 animate-fade-in-up" style={{ animationDelay: `${index * 150}ms`}}>
                         {stat.icon}
                         <p className="text-3xl font-bold">{stat.value}</p>
                         <p className="text-muted-foreground">{stat.label}</p>
@@ -128,7 +128,7 @@ export default function Home() {
 
         <section id="about" className="w-full py-12 md:py-24 lg:py-32">
           <div className="container grid items-center gap-6 px-4 md:px-6 lg:grid-cols-2 lg:gap-10">
-            <div className="space-y-2">
+            <div className="space-y-2 animate-fade-in-up">
               <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight font-headline">
                 About DocVerify
               </h2>
@@ -136,7 +136,7 @@ export default function Home() {
                 DocVerify is a flagship initiative under the Digital India program, designed to combat document fraud in the education and employment sectors. By providing a unified, secure, and technologically advanced platform, we aim to uphold the integrity of credentials issued within the country.
               </p>
             </div>
-            <div className="flex space-x-4 lg:justify-end">
+            <div className="flex space-x-4 lg:justify-end animate-fade-in">
               <Image
                 src={PlaceHolderImages.find(img => img.id === 'about1')?.imageUrl || "/placeholder.svg"}
                 width={300}

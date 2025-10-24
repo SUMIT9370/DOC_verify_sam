@@ -2,14 +2,19 @@ import type { Metadata } from 'next';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { PT_Sans, Source_Code_Pro } from 'next/font/google';
+import { Inter, Lexend, Source_Code_Pro } from 'next/font/google';
 import './globals.css';
 import { FirebaseClientRoot } from '@/components/firebase-client-root';
 
-const ptSans = PT_Sans({
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
+const lexend = Lexend({
   subsets: ['latin'],
   weight: ['400', '700'],
-  variable: '--font-body',
+  variable: '--font-headline',
 });
 
 const sourceCodePro = Source_Code_Pro({
@@ -37,7 +42,8 @@ export default function RootLayout({
       <body
         className={cn(
           'min-h-screen bg-background font-body antialiased',
-          ptSans.variable,
+          inter.variable,
+          lexend.variable,
           sourceCodePro.variable
         )}
       >

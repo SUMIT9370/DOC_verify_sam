@@ -69,7 +69,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline">Dashboard</h1>
@@ -86,8 +86,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="shadow-md hover:shadow-lg transition-shadow">
+        {stats.map((stat, index) => (
+          <Card key={stat.title} className="shadow-md hover:shadow-lg transition-shadow animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
               {stat.icon}
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <Card className="shadow-md">
+      <Card className="shadow-md animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
           <CardDescription>Your latest document verifications.</CardDescription>
