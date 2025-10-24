@@ -11,26 +11,12 @@ export default function Header() {
         <span className="text-xl font-bold font-headline">DuckVerify</span>
       </Link>
       <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
-        <Link
-          href="#features"
-          className="text-sm font-medium hover:underline underline-offset-4"
-          prefetch={false}
-        >
-          Features
-        </Link>
-        <Link
-          href="#about"
-          className="text-sm font-medium hover:underline underline-offset-4"
-          prefetch={false}
-        >
-          About
-        </Link>
-        <Button asChild variant="outline">
+        <Button asChild variant="default">
           <Link href="/login" prefetch={false}>
-            Login
+            Sign In
           </Link>
         </Button>
-        <Button asChild>
+        <Button asChild variant="outline">
           <Link href="/signup" prefetch={false}>
             Sign Up
           </Link>

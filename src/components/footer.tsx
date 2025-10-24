@@ -1,14 +1,45 @@
 import Link from 'next/link';
+import { GovIndiaLogo } from './icons/gov-india-logo';
 
 export default function Footer() {
   return (
-    <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-      <p className="text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} DuckVerify. All rights reserved.
-      </p>
-      <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-        <p className="text-xs text-muted-foreground">Developed by The State.</p>
-      </nav>
+    <footer className="bg-background border-t">
+        <div className='container py-8'>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="space-y-4">
+                    <Link href="/" className="flex items-center gap-2" prefetch={false}>
+                        <GovIndiaLogo className="h-8 w-8 text-primary" />
+                        <span className="text-xl font-bold font-headline">DuckVerify</span>
+                    </Link>
+                    <p className="text-sm text-muted-foreground">
+                        &copy; {new Date().getFullYear()} DuckVerify. All rights reserved.
+                    </p>
+                </div>
+                <div>
+                    <h3 className="font-semibold mb-2">About</h3>
+                    <ul className="space-y-2 text-sm">
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">About DuckVerify</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Terms & Conditions</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Privacy Policy</Link></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 className="font-semibold mb-2">Support</h3>
+                    <ul className="space-y-2 text-sm">
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">FAQ</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Contact Us</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Help & Support</Link></li>
+                    </ul>
+                </div>
+                <div>
+                     <h3 className="font-semibold mb-2">Get Our App</h3>
+                     <p className='text-sm text-muted-foreground'>Download the DuckVerify app from the Google Play and Apple App Store.</p>
+                </div>
+            </div>
+             <div className="mt-8 pt-8 border-t text-center text-xs text-muted-foreground">
+                <p>Content Owned, Maintained and Updated by the Government of India.</p>
+             </div>
+        </div>
     </footer>
   );
 }
