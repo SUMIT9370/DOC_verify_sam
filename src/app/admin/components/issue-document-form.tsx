@@ -144,12 +144,15 @@ export function IssueDocumentForm() {
     setSelectedDocType(newDocType || null);
     
     // Update the Zod schema for validation
-    setCurrentSchema(newDocType ? schemaMap[newDocType.value] : baseSchema);
+    const newSchema = newDocType ? schemaMap[newDocType.value] : baseSchema;
+    form.reset(undefined, {
+      keepValues: false,
+      keepDirty: false,
+      keepDefaultValues: false,
+    });
+    // @ts-ignore zodResolver is not updating the schema for the form
+    form.resolver = zodResolver(newSchema);
 
-    // Keep the documentType value but clear out the old dynamic fields
-    const currentValues = form.getValues();
-    const newDefaults = { documentType: currentValues.documentType };
-    form.reset(newDefaults);
 
   }, [watchedDocType, form]);
 
