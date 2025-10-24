@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MasterUploader } from "./components/master-uploader";
+import { IssueDocumentForm } from "./components/issue-document-form";
 
 export default function AdminPage() {
     return (
@@ -11,18 +12,31 @@ export default function AdminPage() {
                 </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                <Card className="h-full">
-                    <CardHeader>
-                        <CardTitle>Upload New Document Master</CardTitle>
-                        <CardDescription>
-                            Add a new verified document template to the central database for future comparisons.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <MasterUploader />
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div className="space-y-6">
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle>AI-Powered Master Upload</CardTitle>
+                            <CardDescription>
+                                Upload a document image. The AI will extract the data and save it as a master template.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <MasterUploader />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Issue New Document Manually</CardTitle>
+                            <CardDescription>
+                                Fill out the form to create a new master document record in the database.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <IssueDocumentForm />
+                        </CardContent>
+                    </Card>
+                </div>
 
                 <Card>
                     <CardHeader>
@@ -54,5 +68,3 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    
