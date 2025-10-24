@@ -22,7 +22,7 @@ export type ExtractDocumentDataInput = z.infer<typeof ExtractDocumentDataInputSc
 
 const ExtractDocumentDataOutputSchema = z.object({
   documentType: z.string().describe('The type of document identified (e.g., "Degree Certificate", "Income Certificate", "Marksheet").'),
-  documentData: z.record(z.string()).describe('An object containing the structured key-value pairs extracted from the document.'),
+  documentData: z.any().describe('An object containing the structured key-value pairs extracted from the document.'),
   extractedText: z.string().describe('The full text extracted from the document using OCR.'),
 });
 export type ExtractDocumentDataOutput = z.infer<typeof ExtractDocumentDataOutputSchema>;
