@@ -31,6 +31,48 @@ const VerifyDocumentOutputSchema = z.object({
 });
 export type VerifyDocumentOutput = z.infer<typeof VerifyDocumentOutputSchema>;
 
+/**
+ * Tool to execute the python script for document analysis.
+ * This encapsulates the `run` command properly.
+ */
+const pythonExecutor = ai.defineTool(
+    {
+      name: 'pythonExecutor',
+      description: 'Executes the document forgery detection Python script.',
+      inputSchema: z.object({ imagePath: z.string() }),
+      outputSchema: z.any(),
+    },
+    async ({ imagePath }) => {
+        const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
+        const scriptPath = path.join(modelPath, 'app.py');
+
+        const { stdout, stderr } = await run("python3", [scriptPath, imagePath], {
+            cwd: modelPath,
+        });
+
+        if (stderr) {
+            // Log stderr but don't immediately fail, as some libraries write warnings here.
+            console.warn("Python script stderr:", stderr);
+        }
+
+        if (!stdout) {
+            throw new Error("Python script produced no output.");
+        }
+
+        try {
+            const analysisResult = JSON.parse(stdout);
+            if (analysisResult.error) {
+                throw new Error(`Analysis script returned an error: ${analysisResult.error}`);
+            }
+            return analysisResult;
+        } catch (e) {
+            console.error("Failed to parse python script output:", stdout);
+            throw new Error("Could not parse the output from the document analysis script.");
+        }
+    }
+);
+
+
 export async function verifyDocument(input: VerifyDocumentInput): Promise<VerifyDocumentOutput> {
   return verifyDocumentFlow(input);
 }
@@ -40,41 +82,20 @@ const verifyDocumentFlow = ai.defineFlow(
     name: 'verifyDocumentFlow',
     inputSchema: VerifyDocumentInputSchema,
     outputSchema: VerifyDocumentOutputSchema,
-    tools: [findMasterDocument],
+    tools: [findMasterDocument, pythonExecutor],
   },
   async (input) => {
     // 1. Save the data URI to a temporary file
     const buffer = Buffer.from(input.documentDataUri.split(',')[1], 'base64');
-    const tempDir = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
-    // Ensure the directory exists
+    const tempDir = path.join(process.cwd(), 'tmp'); // Use a dedicated tmp directory
     await fs.mkdir(tempDir, { recursive: true });
     const tempImagePath = path.join(tempDir, `upload_${Date.now()}.png`);
     await fs.writeFile(tempImagePath, buffer);
     
     let analysisResult;
     try {
-        const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
-        const scriptPath = path.join(modelPath, 'app.py');
-
-        // 2. Execute the python script directly using genkit's run command
-        const { stdout, stderr } = await run("python3", [scriptPath, tempImagePath], {
-            cwd: modelPath,
-        });
-
-        if (stderr) {
-            console.warn("Python script stderr:", stderr); // Log warnings but don't fail
-        }
-        
-        try {
-            analysisResult = JSON.parse(stdout);
-        } catch (e) {
-            console.error("Failed to parse python script output:", stdout);
-            throw new Error("Could not parse the output from the document analysis script.");
-        }
-
-        if (analysisResult.error) {
-            throw new Error(`Analysis script returned an error: ${analysisResult.error}`)
-        }
+        // 2. Execute the python script using the dedicated tool
+        analysisResult = await pythonExecutor({ imagePath: tempImagePath });
 
     } finally {
         // 3. Clean up the temporary file
