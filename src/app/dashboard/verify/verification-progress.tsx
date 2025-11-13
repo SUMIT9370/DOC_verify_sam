@@ -11,9 +11,8 @@ import {
   Loader2,
   XCircle,
   AlertTriangle,
-  Scale,
-  ScanSearch,
-  ZoomIn,
+  BookMarked,
+  Upload,
 } from 'lucide-react';
 import type { VerifyDocumentOutput } from '@/ai/flows/document-verification-ai';
 import { verifyDocument } from '@/ai/flows/document-verification-ai';
@@ -117,12 +116,12 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
             {isVerifying && <Progress value={progress} className="w-full h-2 mt-2" />}
         </CardHeader>
         <CardContent className="p-4 md:p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* Compare Window */}
+                {/* Master Document */}
                 <div className="space-y-3">
-                    <h3 className="font-semibold flex items-center gap-2"><Scale className="h-5 w-5 text-primary" /> Compare Window</h3>
-                    <div className="aspect-w-3 aspect-h-4 relative rounded-md border p-1 bg-white">
+                    <h3 className="font-semibold flex items-center gap-2"><BookMarked className="h-5 w-5 text-primary" /> Master Document</h3>
+                    <div className="aspect-w-4 aspect-h-3 relative rounded-md border p-1 bg-white">
                        {isVerifying && !result?.masterDocumentDataUri && (
                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                                <Loader2 className="h-8 w-8 animate-spin mb-2" />
@@ -148,27 +147,10 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
                     <CardDescription>Official master document from the database.</CardDescription>
                 </div>
 
-                {/* OCR Text */}
+                {/* Uploaded Document */}
                 <div className="space-y-3">
-                    <h3 className="font-semibold flex items-center gap-2"><ScanSearch className="h-5 w-5 text-primary" /> OCR Text</h3>
-                    <div className="aspect-w-3 aspect-h-4 relative rounded-md border p-4 bg-muted/50 overflow-y-auto">
-                        {isVerifying && !result?.extractedText && (
-                             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                                <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                                <p className="text-sm font-medium">Extracting Text...</p>
-                            </div>
-                        )}
-                        <pre className="text-xs whitespace-pre-wrap font-mono">
-                            {result?.extractedText || 'No text extracted yet.'}
-                        </pre>
-                    </div>
-                     <CardDescription>Text extracted by AI from the uploaded image.</CardDescription>
-                </div>
-
-                {/* Uploaded Image */}
-                <div className="space-y-3">
-                     <h3 className="font-semibold flex items-center gap-2"><ZoomIn className="h-5 w-5 text-primary" /> Uploaded Image</h3>
-                     <div className="aspect-w-3 aspect-h-4 relative rounded-md border p-1 bg-white">
+                     <h3 className="font-semibold flex items-center gap-2"><Upload className="h-5 w-5 text-primary" /> Uploaded Document</h3>
+                     <div className="aspect-w-4 aspect-h-3 relative rounded-md border p-1 bg-white">
                         <Image
                             src={file.preview}
                             alt={file.name}
@@ -177,7 +159,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
                             onLoad={() => URL.revokeObjectURL(file.preview)}
                         />
                     </div>
-                    <CardDescription>The document image you uploaded.</CardDescription>
+                    <CardDescription>The document image you uploaded for verification.</CardDescription>
                 </div>
             </div>
 
@@ -187,7 +169,11 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
                     {result && !error && (
                         <div>
                             <h4 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5"/> AI Verification Summary:</h4>
-                            <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">{result.verificationDetails}</p>
+                             <div className="text-sm text-muted-foreground bg-muted/50 p-4 rounded-md space-y-2">
+                                <pre className="whitespace-pre-wrap font-mono">{result.verificationDetails}</pre>
+                                <h5 className="font-semibold pt-2 border-t">Full Extracted Text:</h5>
+                                <pre className="whitespace-pre-wrap font-mono text-xs">{result.extractedText || "No text could be extracted."}</pre>
+                             </div>
                         </div>
                     )}
                     {error && (
