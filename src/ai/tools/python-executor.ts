@@ -30,7 +30,7 @@ export const pythonExecutor = ai.defineTool(
 
     // Use a Promise to handle the asynchronous nature of the child process
     return new Promise((resolve, reject) => {
-      // Spawn the Python process. Using 'python' is more portable than 'python3'.
+      // Spawn the Python process. The command should be 'python' for portability.
       const pythonProcess = spawn('python', [scriptPath, input.imagePath], {
         cwd: modelPath,
       });
