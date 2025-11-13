@@ -31,22 +31,34 @@ const VerifyDocumentOutputSchema = z.object({
 });
 export type VerifyDocumentOutput = z.infer<typeof VerifyDocumentOutputSchema>;
 
-/**
- * Tool to execute the python script for document analysis.
- * This encapsulates the `run` command properly.
- */
-const pythonExecutor = ai.defineTool(
-    {
-      name: 'pythonExecutor',
-      description: 'Executes the document forgery detection Python script.',
-      inputSchema: z.object({ imagePath: z.string() }),
-      outputSchema: z.any(),
-    },
-    async ({ imagePath }) => {
+
+export async function verifyDocument(input: VerifyDocumentInput): Promise<VerifyDocumentOutput> {
+  return verifyDocumentFlow(input);
+}
+
+const verifyDocumentFlow = ai.defineFlow(
+  {
+    name: 'verifyDocumentFlow',
+    inputSchema: VerifyDocumentInputSchema,
+    outputSchema: VerifyDocumentOutputSchema,
+    tools: [findMasterDocument],
+  },
+  async (input) => {
+    // 1. Save the data URI to a temporary file
+    const buffer = Buffer.from(input.documentDataUri.split(',')[1], 'base64');
+    const tempDir = path.join(process.cwd(), 'tmp'); // Use a dedicated tmp directory
+    await fs.mkdir(tempDir, { recursive: true });
+    const tempImagePath = path.join(tempDir, `upload_${Date.now()}.png`);
+    await fs.writeFile(tempImagePath, buffer);
+    
+    let analysisResult;
+    try {
+        // 2. Define path to the python script
         const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
         const scriptPath = path.join(modelPath, 'app.py');
 
-        const { stdout, stderr } = await run("python3", [scriptPath, imagePath], {
+        // Execute the script using genkit's 'run' command
+        const { stdout, stderr } = await run("python3", [scriptPath, tempImagePath], {
             cwd: modelPath,
         });
 
@@ -60,42 +72,14 @@ const pythonExecutor = ai.defineTool(
         }
 
         try {
-            const analysisResult = JSON.parse(stdout);
+            analysisResult = JSON.parse(stdout);
             if (analysisResult.error) {
                 throw new Error(`Analysis script returned an error: ${analysisResult.error}`);
             }
-            return analysisResult;
         } catch (e) {
             console.error("Failed to parse python script output:", stdout);
             throw new Error("Could not parse the output from the document analysis script.");
         }
-    }
-);
-
-
-export async function verifyDocument(input: VerifyDocumentInput): Promise<VerifyDocumentOutput> {
-  return verifyDocumentFlow(input);
-}
-
-const verifyDocumentFlow = ai.defineFlow(
-  {
-    name: 'verifyDocumentFlow',
-    inputSchema: VerifyDocumentInputSchema,
-    outputSchema: VerifyDocumentOutputSchema,
-    tools: [findMasterDocument, pythonExecutor],
-  },
-  async (input) => {
-    // 1. Save the data URI to a temporary file
-    const buffer = Buffer.from(input.documentDataUri.split(',')[1], 'base64');
-    const tempDir = path.join(process.cwd(), 'tmp'); // Use a dedicated tmp directory
-    await fs.mkdir(tempDir, { recursive: true });
-    const tempImagePath = path.join(tempDir, `upload_${Date.now()}.png`);
-    await fs.writeFile(tempImagePath, buffer);
-    
-    let analysisResult;
-    try {
-        // 2. Execute the python script using the dedicated tool
-        analysisResult = await pythonExecutor({ imagePath: tempImagePath });
 
     } finally {
         // 3. Clean up the temporary file
@@ -139,7 +123,6 @@ ${govCheckDetails}${qrDetails}
     `;
 
     // 8. Try to find a master document using extracted data
-    // A more generic way to find a name, looking for a common pattern
     const nameMatch = ocrText.match(/(?:This certifies that|is awarded to|Name:)\s*([\w\s-]+)/i);
     const studentName = nameMatch ? nameMatch[1].trim() : undefined;
 
