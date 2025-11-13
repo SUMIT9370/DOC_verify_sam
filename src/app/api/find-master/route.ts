@@ -49,9 +49,8 @@ export async function POST(req: NextRequest) {
         }
 
         const docData = snapshot.docs[0].data();
-        // Don't return the full image data URI
-        delete docData.documentDataUri;
         
+        // Return the full document data, including the image URI
         return NextResponse.json({ found: true, data: docData });
 
     } catch (error: any) {

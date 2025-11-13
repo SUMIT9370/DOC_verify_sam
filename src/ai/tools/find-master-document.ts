@@ -24,11 +24,11 @@ const API_URL = process.env.NODE_ENV === 'production'
 export const findMasterDocument = ai.defineTool(
   {
     name: 'findMasterDocument',
-    description: 'Searches for a matching master educational document by calling an API endpoint with extracted fields.',
+    description: 'Searches for a matching master educational document by calling an API endpoint with extracted fields. Returns the full master document if found, including its image data URI.',
     inputSchema: MasterDocumentQuerySchema,
     outputSchema: z.object({
         found: z.boolean().describe('Whether a matching document was found.'),
-        data: z.any().optional().describe('The data of the found document.'),
+        data: z.any().optional().describe('The data of the found document, including documentDataUri.'),
     }),
   },
   async (input) => {

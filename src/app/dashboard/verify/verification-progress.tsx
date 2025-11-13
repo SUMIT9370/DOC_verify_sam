@@ -2,19 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   CheckCircle2,
   FileText,
-  ScanQrCode,
-  AlignHorizontalDistributeCenter,
-  BadgeCheck,
-  Stamp,
   Loader2,
   XCircle,
   AlertTriangle,
+  Scale,
+  ScanSearch,
+  ZoomIn,
 } from 'lucide-react';
 import type { VerifyDocumentOutput } from '@/ai/flows/document-verification-ai';
 import { verifyDocument } from '@/ai/flows/document-verification-ai';
@@ -27,20 +26,6 @@ interface VerificationProgressProps {
   autoStart: boolean;
 }
 
-type VerificationStep = {
-  name: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-  icon: React.ReactNode;
-};
-
-const initialSteps: VerificationStep[] = [
-  { name: 'Analyzing Document with AI', status: 'pending', icon: <FileText className="h-5 w-5" /> },
-  { name: 'Verifying QR/Barcode', status: 'pending', icon: <ScanQrCode className="h-5 w-5" /> },
-  { name: 'Analyzing Text Alignment', status: 'pending', icon: <AlignHorizontalDistributeCenter className="h-5 w-5" /> },
-  { name: 'Detecting Watermark', status: 'pending', icon: <BadgeCheck className="h-5 w-5" /> },
-  { name: 'Validating Hallmark/Stamp', status: 'pending', icon: <Stamp className="h-5 w-5" /> },
-];
-
 const fileToDataUri = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -52,7 +37,6 @@ const fileToDataUri = (file: File): Promise<string> => {
 
 
 export function VerificationProgress({ file, autoStart }: VerificationProgressProps) {
-  const [steps, setSteps] = useState<VerificationStep[]>(initialSteps);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<VerifyDocumentOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,27 +56,14 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
       }
       
       try {
-        // STEP 1: Get Data URI for AI
         setProgress(5);
         const dataUri = await fileToDataUri(file);
         
-        // STEP 2: Simulate step-by-step progress for better UX
-        for (let i = 0; i < initialSteps.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
-          setSteps(prev => {
-            const newSteps = [...prev];
-            if(i > 0) newSteps[i-1].status = 'completed';
-            newSteps[i].status = 'running';
-            return newSteps;
-          });
-          setProgress(10 + (i + 1) * (90 / initialSteps.length));
-        }
-
-        // STEP 3: Call AI verification flow
+        setProgress(25);
         const aiResult = await verifyDocument({ documentDataUri: dataUri });
         setResult(aiResult);
         
-        // STEP 4: Save result to Firestore with the image as a Data URI
+        setProgress(90);
         const historyCollection = collection(firestore, 'users', user.uid, 'verification_history');
         await addDoc(historyCollection, {
             documentName: file.name,
@@ -103,12 +74,10 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
         });
 
         setProgress(100);
-        setSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
 
       } catch (e: any) {
         console.error('Verification failed:', e);
         setError(e.message || 'An unexpected error occurred during verification.');
-        setSteps(prev => prev.map(step => (step.status === 'running' ? { ...step, status: 'failed' } : step)));
       } finally {
         setIsVerifying(false);
       }
@@ -118,27 +87,11 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
 
   }, [autoStart, file, user, firestore]);
 
-  const getStepIcon = (status: VerificationStep['status']) => {
-    switch (status) {
-      case 'running':
-        return <Loader2 className="h-5 w-5 animate-spin text-primary" />;
-      case 'completed':
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case 'failed':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'skipped':
-        return <div className="h-5 w-5 rounded-full border-2 border-dashed border-muted-foreground" />;
-      case 'pending':
-      default:
-        return <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />;
-    }
-  };
-
   const getResultBadge = () => {
     if (error) {
         return <Badge variant="destructive" className="text-lg py-1 px-4"><AlertTriangle className="mr-2 h-5 w-5"/>Error</Badge>;
     }
-    if (!result && isVerifying) {
+    if (isVerifying) {
         return <Badge variant="secondary" className="text-lg py-1 px-4"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Verifying</Badge>;
     }
     if (result?.isAuthentic) {
@@ -151,65 +104,101 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
     if (!isVerifying && !result) {
       return <Badge variant="destructive" className="text-lg py-1 px-4"><XCircle className="mr-2 h-5 w-5" /> Failed</Badge>;
     }
-    return <Badge variant="secondary" className="text-lg py-1 px-4"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Verifying</Badge>;
+    return <Badge variant="secondary" className="text-lg py-1 px-4"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Initializing</Badge>;
   }
 
   return (
     <Card className="shadow-lg overflow-hidden">
-      <CardHeader className="bg-muted/30">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="truncate font-headline" title={file.name}>{file.name}</CardTitle>
-            {getResultBadge()}
-        </div>
-      </CardHeader>
-      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <div className="aspect-square relative rounded-md border p-1 bg-white">
-            <Image
-              src={file.preview}
-              alt={file.name}
-              fill
-              className="object-contain"
-              onLoad={() => URL.revokeObjectURL(file.preview)}
-            />
-          </div>
-        </div>
-        <div className="md:col-span-2 space-y-4">
-            <div>
-                <Progress value={progress} className="w-full h-3" />
-                <p className="text-sm text-muted-foreground mt-2">{isVerifying ? 'Verification in progress...' : `Verification ${error ? 'failed' : 'complete'}.`}</p>
+        <CardHeader className="bg-muted/30 border-b">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <CardTitle className="truncate font-headline" title={file.name}>{file.name}</CardTitle>
+                {getResultBadge()}
             </div>
-            
-            <div className="space-y-3">
-                {steps.map((step, index) => (
-                <div key={index} className="flex items-center gap-4 text-sm">
-                    {getStepIcon(step.status)}
-                    <span className={cn(
-                        "font-medium",
-                        step.status === 'pending' && 'text-muted-foreground',
-                        step.status === 'completed' && 'line-through text-muted-foreground',
-                        step.status === 'failed' && 'text-destructive'
-                    )}>
-                    {step.name}
-                    </span>
+            {isVerifying && <Progress value={progress} className="w-full h-2 mt-2" />}
+        </CardHeader>
+        <CardContent className="p-4 md:p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Compare Window */}
+                <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2"><Scale className="h-5 w-5 text-primary" /> Compare Window</h3>
+                    <div className="aspect-w-3 aspect-h-4 relative rounded-md border p-1 bg-white">
+                       {isVerifying && !result?.masterDocumentDataUri && (
+                           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                               <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                               <p className="text-sm font-medium">Searching Database...</p>
+                           </div>
+                       )}
+                       {!isVerifying && !result?.masterDocumentDataUri && (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4 text-center">
+                                <XCircle className="h-8 w-8 text-destructive mb-2" />
+                                <p className="text-sm font-medium">No Master Found</p>
+                                <p className="text-xs">No matching master document was found in the database.</p>
+                            </div>
+                       )}
+                       {result?.masterDocumentDataUri && (
+                           <Image
+                                src={result.masterDocumentDataUri}
+                                alt="Master Document"
+                                fill
+                                className="object-contain"
+                           />
+                       )}
+                    </div>
+                    <CardDescription>Official master document from the database.</CardDescription>
                 </div>
-                ))}
+
+                {/* OCR Text */}
+                <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2"><ScanSearch className="h-5 w-5 text-primary" /> OCR Text</h3>
+                    <div className="aspect-w-3 aspect-h-4 relative rounded-md border p-4 bg-muted/50 overflow-y-auto">
+                        {isVerifying && !result?.extractedText && (
+                             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                                <p className="text-sm font-medium">Extracting Text...</p>
+                            </div>
+                        )}
+                        <pre className="text-xs whitespace-pre-wrap font-mono">
+                            {result?.extractedText || 'No text extracted yet.'}
+                        </pre>
+                    </div>
+                     <CardDescription>Text extracted by AI from the uploaded image.</CardDescription>
+                </div>
+
+                {/* Uploaded Image */}
+                <div className="space-y-3">
+                     <h3 className="font-semibold flex items-center gap-2"><ZoomIn className="h-5 w-5 text-primary" /> Uploaded Image</h3>
+                     <div className="aspect-w-3 aspect-h-4 relative rounded-md border p-1 bg-white">
+                        <Image
+                            src={file.preview}
+                            alt={file.name}
+                            fill
+                            className="object-contain"
+                            onLoad={() => URL.revokeObjectURL(file.preview)}
+                        />
+                    </div>
+                    <CardDescription>The document image you uploaded.</CardDescription>
+                </div>
             </div>
 
-            {result && !error && (
-                <div className="pt-4 border-t">
-                    <h4 className="font-semibold mb-2">Verification Details:</h4>
-                    <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">{result.verificationDetails}</p>
+            {/* Verification Details */}
+            {(result || error) && !isVerifying && (
+                 <div className="pt-6 mt-6 border-t">
+                    {result && !error && (
+                        <div>
+                            <h4 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5"/> AI Verification Summary:</h4>
+                            <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">{result.verificationDetails}</p>
+                        </div>
+                    )}
+                    {error && (
+                        <div>
+                            <h4 className="font-semibold mb-2 text-destructive flex items-center gap-2"><AlertTriangle className="h-5 w-5" /> Error Details:</h4>
+                            <p className="text-sm text-destructive-foreground bg-destructive/20 p-3 rounded-md">{error}</p>
+                        </div>
+                    )}
                 </div>
             )}
-            {error && (
-                 <div className="pt-4 border-t">
-                    <h4 className="font-semibold mb-2 text-destructive">Error Details:</h4>
-                    <p className="text-sm text-destructive-foreground bg-destructive/80 p-3 rounded-md">{error}</p>
-                </div>
-            )}
-        </div>
-      </CardContent>
+        </CardContent>
     </Card>
   );
 }

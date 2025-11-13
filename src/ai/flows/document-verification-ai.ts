@@ -25,11 +25,8 @@ export type VerifyDocumentInput = z.infer<typeof VerifyDocumentInputSchema>;
 const VerifyDocumentOutputSchema = z.object({
   isAuthentic: z.boolean().describe('Whether or not the document is authentic based on database comparison and visual checks.'),
   verificationDetails: z.string().describe('Detailed information about the verification process, including the result of the database lookup and visual analysis.'),
-  extractedText: z.string().optional().describe('The extracted text from the image, if available.'),
-  qrVerificationResult: z.boolean().optional().describe('The QR verification result, if available.'),
-  textAlignmentCheck: z.boolean().optional().describe('The text alignment verification result, if available.'),
-  watermarkDetected: z.boolean().optional().describe('Whether a watermark was detected, if available.'),
-  hallmarkDetected: z.boolean().optional().describe('Whether a hallmark was detected, if available.'),
+  extractedText: z.string().optional().describe('The full text extracted from the document using OCR.'),
+  masterDocumentDataUri: z.string().optional().describe('The data URI of the matching master document image, if one was found.'),
 });
 export type VerifyDocumentOutput = z.infer<typeof VerifyDocumentOutputSchema>;
 
@@ -39,22 +36,29 @@ export async function verifyDocument(input: VerifyDocumentInput): Promise<Verify
 
 const verifyDocumentPrompt = ai.definePrompt({
   name: 'verifyDocumentPrompt',
-  input: {schema: VerifyDocumentInputSchema},
+  input: {schema: z.object({ 
+    documentDataUri: z.string(),
+    extractedText: z.string().optional(),
+   })},
   output: {schema: VerifyDocumentOutputSchema},
   tools: [findMasterDocument],
   prompt: `You are an AI expert in document verification for DocVerify. Your primary goal is to determine if a user-uploaded document is authentic by comparing it against official master documents stored in a database.
 
 Follow these steps:
-1.  **Extract Data**: First, use the 'extractDocumentData' tool on the provided document image to get structured data (student name, university, degree, issue date).
-2.  **Find Master Document**: Next, use the 'findMasterDocument' tool with the extracted data to search for a matching official document in the database.
+1.  **Analyze Extracted Data**: You have been provided with the full OCR text extracted from the user's document.
+2.  **Find Master Document**: Use the 'findMasterDocument' tool with key details from the extracted text (like student name, university, degree, etc.) to search for a matching official document in the database.
 3.  **Analyze and Compare**:
-    *   **If a master document is found**: The document is likely authentic. State that a matching record was found in the database and mention any minor discrepancies in the visual analysis (text alignment, watermarks, hallmarks).
-    *   **If NO master document is found**: The document is likely FAKE. State clearly that NO matching record was found in the official database. This is the most important factor.
-    *   **Visual Checks**: Also perform a visual analysis of the document for text alignment, watermarks, and hallmarks, and report your findings. The database result is the primary determinant of authenticity.
+    *   **If a master document is found**: The document is likely authentic. State that a matching record was found in the database. Your 'verificationDetails' should summarize the successful match. Set 'isAuthentic' to true. The 'masterDocumentDataUri' will be returned by the tool automatically.
+    *   **If NO master document is found**: The document is likely FAKE. State clearly that NO matching record was found in the official database. This is the most important factor. Set 'isAuthentic' to false.
+    *   **Visual Checks**: Also perform a brief visual analysis of the document for text alignment, watermarks, and hallmarks, and mention your findings in the 'verificationDetails'. The database result is the primary determinant of authenticity.
 
-Your final response must be a JSON object with 'isAuthentic' and 'verificationDetails'. The 'isAuthentic' field should be 'true' ONLY if a matching master document is found.
+Your final response must be a JSON object conforming to the output schema. The 'isAuthentic' field should be 'true' ONLY if a matching master document is found. Also include the provided 'extractedText' in the final output.
 
 Image: {{media url=documentDataUri}}
+Extracted Text:
+\`\`\`
+{{{extractedText}}}
+\`\`\`
 `,
 });
 
@@ -66,13 +70,19 @@ const verifyDocumentFlow = ai.defineFlow(
   },
   async input => {
     // Manually call the extraction flow first
-    const extractedData = await extractDocumentData({ documentDataUri: input.documentDataUri });
+    const extractionResult = await extractDocumentData({ documentDataUri: input.documentDataUri });
     
-    // Then, call the verification prompt, which can now use the `findMasterDocument` tool.
-    // We can pass the extracted data into the prompt if needed, but the current prompt
-    // instructs the LLM to call the tools itself. The LLM should be smart enough
-    // to orchestrate this.
-    const {output} = await verifyDocumentPrompt(input);
+    // Now call the verification prompt, passing the full extracted text to it.
+    const {output} = await verifyDocumentPrompt({
+      documentDataUri: input.documentDataUri,
+      extractedText: extractionResult.extractedText
+    });
+
+    // Manually stitch the extracted text into the final result as the LLM sometimes forgets
+    if (output) {
+      output.extractedText = extractionResult.extractedText;
+    }
+
     return output!;
   }
 );
