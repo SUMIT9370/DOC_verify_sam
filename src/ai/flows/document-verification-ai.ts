@@ -9,8 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
-import { run } from 'genkit/tools';
+import { z, run } from 'genkit';
 import { findMasterDocument } from '../tools/find-master-document';
 import * as fs from 'fs/promises';
 import * as os from 'os';
