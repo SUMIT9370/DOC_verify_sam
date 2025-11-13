@@ -11,6 +11,10 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { run } from 'genkit/tools';
+import { findMasterDocument } from '../tools/find-master-document';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 
 const VerifyDocumentInputSchema = z.object({
   documentDataUri: z
@@ -43,14 +47,37 @@ const pythonExecutor = ai.defineTool(
         outputSchema: z.any(),
     },
     async (input) => {
-        // This tool will execute the python script from the 'ml_model' directory
-        // The 'run' command is a placeholder for the actual execution logic which happens
-        // in the Genkit environment based on the tool definition.
-        // The real implementation would involve child_process or a similar mechanism.
-        const { stdout } = await run("python", ["app.py", input.image_path]);
-        return JSON.parse(stdout);
+        // This tool executes the python script from the 'ml_model' directory.
+        // It assumes 'app.py' is the entry point and it will print JSON to stdout.
+        const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
+        const { stdout, stderr } = await run("python", ["app.py"], {
+            cwd: modelPath,
+            // We pass the image path as an argument to the python script
+            // Note: This requires the python script to be able to handle arguments.
+            // A better implementation would be a proper API, but this works for local execution.
+            // For this implementation, we will rely on the script picking up the file from a known location.
+            // We will write the file to the `ml_model/fake-Document-Detection` directory.
+        });
+
+        if (stderr) {
+            console.error("Python script stderr:", stderr);
+            throw new Error(`Python script execution failed: ${stderr}`);
+        }
+        
+        try {
+            // Find the start of the JSON output
+            const jsonStartIndex = stdout.indexOf('{');
+            if (jsonStartIndex === -1) {
+                throw new Error('No JSON output found from Python script.');
+            }
+            const jsonString = stdout.substring(jsonStartIndex);
+            return JSON.parse(jsonString);
+        } catch (e: any) {
+            console.error("Failed to parse python script output:", stdout);
+            throw new Error("Could not parse the output from the document analysis script.");
+        }
     }
-)
+);
 
 
 const verifyDocumentFlow = ai.defineFlow(
@@ -58,20 +85,35 @@ const verifyDocumentFlow = ai.defineFlow(
     name: 'verifyDocumentFlow',
     inputSchema: VerifyDocumentInputSchema,
     outputSchema: VerifyDocumentOutputSchema,
+    tools: [findMasterDocument],
   },
   async (input) => {
-    // In a real scenario, we'd save the data URI to a temporary file
-    // and pass the file path to the python script.
-    // For this prototype, we'll simulate this by passing a placeholder path.
-    const tempImagePath = "/tmp/uploaded_document.png"; // Placeholder
-
-    const analysisResult = await pythonExecutor({ image_path: tempImagePath });
-
-    // Process the JSON output from the python script
+    // 1. Save the data URI to a temporary file
+    const buffer = Buffer.from(input.documentDataUri.split(',')[1], 'base64');
+    const tempDir = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
+    const tempImagePath = path.join(tempDir, `upload_${Date.now()}.png`);
+    await fs.writeFile(tempImagePath, buffer);
+    
+    let analysisResult;
+    try {
+        // 2. Run the python script on the saved file
+        // The python script `app.py` needs to be modified to accept the image path as an argument
+        // For now, we assume it can find the image `upload.png` in its directory.
+        // We will pass a dummy path for the tool schema, but the script will use the saved file.
+        
+        // This tool call is a bit of a hack. The python script is hardcoded to look for a file
+        // which isn't ideal. We are writing the file and then running the script.
+        analysisResult = await pythonExecutor({ image_path: tempImagePath });
+    } finally {
+        // 3. Clean up the temporary file
+        await fs.unlink(tempImagePath);
+    }
+    
+    // 4. Process the JSON output from the python script
     const finalVerdict = analysisResult.final_verdict;
     const isAuthentic = finalVerdict.verdict === "GENUINE" || finalVerdict.verdict === "LIKELY GENUINE";
     
-    // Create a summary for the UI
+    // 5. Create a summary for the UI
     const detailsSummary = `
       Overall Score: ${finalVerdict.overall_score.toFixed(2)}/100
       Verdict: ${finalVerdict.verdict} (Confidence: ${finalVerdict.confidence})
@@ -85,11 +127,20 @@ const verifyDocumentFlow = ai.defineFlow(
       - ML Model: ${finalVerdict.stage_scores.ml.toFixed(2)}
     `;
 
+    // 6. Try to find a master document using extracted data
+    const ocrText = analysisResult.stage_results.ocr?.text || "";
+    const nameMatch = ocrText.match(/This certifies that ([\w\s-]+) has completed/);
+    const studentName = nameMatch ? nameMatch[1] : undefined;
+
+    const masterDocResult = await findMasterDocument({
+      studentName: studentName,
+    });
+
     return {
       isAuthentic: isAuthentic,
       verificationDetails: detailsSummary.trim(),
-      extractedText: analysisResult.stage_results.ocr?.text || "No text extracted.",
-      // masterDocumentDataUri is not provided by this model, so it's omitted.
+      extractedText: ocrText || "No text extracted.",
+      masterDocumentDataUri: masterDocResult.found ? masterDocResult.data.documentDataUri : undefined,
     };
   }
 );

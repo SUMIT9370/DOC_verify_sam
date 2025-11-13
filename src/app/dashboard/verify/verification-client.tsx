@@ -13,7 +13,7 @@ type FileWithPreview = File & {
 
 export function VerificationClient() {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationQueue, setVerificationQueue] = useState<FileWithPreview[]>([]);
   const componentId = useId();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -44,14 +44,17 @@ export function VerificationClient() {
   
   const handleStartVerification = () => {
     if (files.length > 0) {
-      setIsVerifying(true);
+      setVerificationQueue(files);
+      setFiles([]); // Move files from upload list to verification queue
     }
   };
   
   const handleReset = () => {
     setFiles([]);
-    setIsVerifying(false);
+    setVerificationQueue([]);
   };
+  
+  const isVerifying = verificationQueue.length > 0;
 
   return (
     <div className="space-y-6">
@@ -76,7 +79,7 @@ export function VerificationClient() {
         </div>
       )}
 
-      {files.length > 0 && (
+      {files.length > 0 && !isVerifying && (
         <div className="space-y-4">
             <h3 className="text-xl font-semibold font-headline">Uploaded Documents</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -85,40 +88,41 @@ export function VerificationClient() {
                  <FileIcon className="w-10 h-10 text-muted-foreground"/>
                  <p className="text-sm font-medium text-center truncate w-full" title={file.name}>{file.name}</p>
                  <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
-                 {!isVerifying && (
-                    <Button
-                    variant="destructive"
-                    size="icon"
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(file.id);
-                    }}
-                    >
-                    <X className="h-4 w-4" />
-                    </Button>
-                 )}
+                <Button
+                variant="destructive"
+                size="icon"
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    removeFile(file.id);
+                }}
+                >
+                <X className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
           <div className="flex gap-4 pt-4">
-            <Button onClick={handleStartVerification} disabled={isVerifying || files.length === 0} size="lg">
-              {isVerifying ? 'Verifying...' : 'Start Verification'}
+            <Button onClick={handleStartVerification} disabled={files.length === 0} size="lg">
+              Start Verification
             </Button>
-            {isVerifying && (
-                 <Button onClick={handleReset} variant="outline" size="lg">
-                    Verify More Documents
-                 </Button>
-            )}
           </div>
         </div>
       )}
 
       {isVerifying && (
-        <div className="space-y-6">
-          {files.map((file, index) => (
-            <VerificationProgress key={file.id} file={file} autoStart={true} />
-          ))}
+        <div className="space-y-4">
+            <div className='flex justify-between items-center'>
+                 <h3 className="text-xl font-semibold font-headline">Verification in Progress...</h3>
+                 <Button onClick={handleReset} variant="outline" size="lg">
+                    Verify More Documents
+                 </Button>
+            </div>
+            <div className="space-y-6">
+                {verificationQueue.map((file) => (
+                    <VerificationProgress key={file.id} file={file} autoStart={true} />
+                ))}
+            </div>
         </div>
       )}
     </div>
