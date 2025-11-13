@@ -56,7 +56,7 @@ const verifyDocumentFlow = ai.defineFlow(
         const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
         const scriptPath = path.join(modelPath, 'app.py');
 
-        // Execute the python script directly using genkit's run command
+        // 2. Execute the python script directly using genkit's run command
         const { stdout, stderr } = await run("python3", [scriptPath, tempImagePath], {
             cwd: modelPath,
         });
@@ -83,9 +83,26 @@ const verifyDocumentFlow = ai.defineFlow(
     
     // 4. Process the JSON output from the python script
     const finalVerdict = analysisResult.final_verdict;
+    const stageResults = analysisResult.stage_results;
     const isAuthentic = finalVerdict.verdict === "GENUINE" || finalVerdict.verdict === "LIKELY GENUINE";
-    
-    // 5. Create a summary for the UI
+    const ocrText = stageResults.ocr?.text || "";
+
+    // 5. Check if it's a governmental document based on keywords
+    const isGovernmental = /government|govt|india|certificate|official/i.test(ocrText);
+    let govCheckDetails = '';
+    if (isGovernmental) {
+      // Per instructions, skip the dataset check for now. This is the placeholder.
+      console.log("Governmental document detected. Skipping dataset check as per instructions.");
+      govCheckDetails = "\nGovernmental Document: Dataset verification step skipped.";
+    }
+
+    // 6. Check for QR code info
+    let qrDetails = '';
+    if (stageResults.qr?.detected && stageResults.qr.codes.length > 0) {
+      qrDetails = '\n--- \nQR Code Information:\n' + stageResults.qr.codes.map((code: any) => `- Type: ${code.type}, Data: ${code.data}`).join('\n');
+    }
+
+    // 7. Create a summary for the UI
     const detailsSummary = `
 Overall Score: ${finalVerdict.overall_score.toFixed(2)}/100
 Verdict: ${finalVerdict.verdict} (Confidence: ${finalVerdict.confidence})
@@ -97,10 +114,10 @@ Stage Scores:
 - Watermark: ${finalVerdict.stage_scores.watermark.toFixed(2)}
 - Layout: ${finalVerdict.stage_scores.layout.toFixed(2)}
 - ML Model: ${finalVerdict.stage_scores.ml.toFixed(2)}
+${govCheckDetails}${qrDetails}
     `;
 
-    // 6. Try to find a master document using extracted data
-    const ocrText = analysisResult.stage_results.ocr?.text || "";
+    // 8. Try to find a master document using extracted data
     // A more generic way to find a name, looking for a common pattern
     const nameMatch = ocrText.match(/(?:This certifies that|is awarded to|Name:)\s*([\w\s-]+)/i);
     const studentName = nameMatch ? nameMatch[1].trim() : undefined;
