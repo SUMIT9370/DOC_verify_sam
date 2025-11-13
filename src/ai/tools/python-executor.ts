@@ -25,13 +25,13 @@ export const pythonExecutor = ai.defineTool(
     outputSchema: PythonExecutorOutputSchema,
   },
   async (input) => {
-    const modelPath = path.join(process.cwd(), 'src', 'ml_model', 'fake-Document-Detection');
+    const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
     const scriptPath = path.join(modelPath, 'app.py');
 
     // Use a Promise to handle the asynchronous nature of the child process
     return new Promise((resolve, reject) => {
-      // Spawn the Python process
-      const pythonProcess = spawn('python3', [scriptPath, input.imagePath], {
+      // Spawn the Python process. Using 'python' is more portable than 'python3'.
+      const pythonProcess = spawn('python', [scriptPath, input.imagePath], {
         cwd: modelPath,
       });
 
@@ -58,17 +58,22 @@ export const pythonExecutor = ai.defineTool(
         }
 
         try {
-          // Try to parse the standard output as JSON
-          const result = JSON.parse(stdoutData);
+          // The python script might print other things before the JSON, so find the JSON object.
+          const jsonMatch = stdoutData.match(/{[\s\S]*}/);
+          if (!jsonMatch) {
+            throw new Error("No JSON object found in the Python script's output.");
+          }
+          const result = JSON.parse(jsonMatch[0]);
+
           if (result.error) {
             reject(new Error(`Python script returned an error: ${result.error}`));
           } else {
             resolve(result);
           }
-        } catch (e) {
+        } catch (e: any) {
           // If JSON parsing fails, reject the promise
           console.error('Failed to parse Python script output:', stdoutData);
-          reject(new Error('Could not parse the JSON output from the Python script.'));
+          reject(new Error(`Could not parse the JSON output from the Python script. Raw output: ${stdoutData}`));
         }
       });
 
