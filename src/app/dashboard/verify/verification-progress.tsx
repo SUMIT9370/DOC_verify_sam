@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   CheckCircle2,
@@ -16,9 +15,9 @@ import {
 } from 'lucide-react';
 import type { VerifyDocumentOutput } from '@/ai/flows/document-verification-ai';
 import { verifyDocument } from '@/ai/flows/document-verification-ai';
-import { cn } from '@/lib/utils';
 import { useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp, addDoc } from 'firebase/firestore';
+import { StagedVerificationProgress, type VerificationStage } from './staged-verification-progress';
 
 interface VerificationProgressProps {
   file: File & { preview: string };
@@ -36,7 +35,7 @@ const fileToDataUri = (file: File): Promise<string> => {
 
 
 export function VerificationProgress({ file, autoStart }: VerificationProgressProps) {
-  const [progress, setProgress] = useState(0);
+  const [currentStage, setCurrentStage] = useState<VerificationStage>('pending');
   const [result, setResult] = useState<VerifyDocumentOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(autoStart);
@@ -51,18 +50,19 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
       if (!user) {
           setError("User is not authenticated.");
           setIsVerifying(false);
+          setCurrentStage('failed');
           return;
       }
       
       try {
-        setProgress(5);
+        setCurrentStage('uploading');
         const dataUri = await fileToDataUri(file);
         
-        setProgress(25);
+        setCurrentStage('analyzing'); // Switch to a general 'analyzing' state
         const aiResult = await verifyDocument({ documentDataUri: dataUri });
         setResult(aiResult);
         
-        setProgress(90);
+        setCurrentStage('saving');
         const historyCollection = collection(firestore, 'users', user.uid, 'verification_history');
         await addDoc(historyCollection, {
             documentName: file.name,
@@ -72,11 +72,12 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
             timestamp: serverTimestamp()
         });
 
-        setProgress(100);
+        setCurrentStage('complete');
 
       } catch (e: any) {
         console.error('Verification failed:', e);
         setError(e.message || 'An unexpected error occurred during verification.');
+        setCurrentStage('failed');
       } finally {
         setIsVerifying(false);
       }
@@ -87,7 +88,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
   }, [autoStart, file, user, firestore]);
 
   const getResultBadge = () => {
-    if (error) {
+    if (currentStage === 'failed') {
         return <Badge variant="destructive" className="text-lg py-1 px-4"><AlertTriangle className="mr-2 h-5 w-5"/>Error</Badge>;
     }
     if (isVerifying) {
@@ -99,10 +100,6 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
     if (result && !result.isAuthentic) {
         return <Badge variant="destructive" className="text-lg py-1 px-4"><XCircle className="mr-2 h-5 w-5"/>Fake Detected</Badge>;
     }
-    // Final state if not verifying and no result (could be initial or post-error)
-    if (!isVerifying && !result) {
-      return <Badge variant="destructive" className="text-lg py-1 px-4"><XCircle className="mr-2 h-5 w-5" /> Failed</Badge>;
-    }
     return <Badge variant="secondary" className="text-lg py-1 px-4"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Initializing</Badge>;
   }
 
@@ -113,7 +110,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
                 <CardTitle className="truncate font-headline" title={file.name}>{file.name}</CardTitle>
                 {getResultBadge()}
             </div>
-            {isVerifying && <Progress value={progress} className="w-full h-2 mt-2" />}
+            {isVerifying && <StagedVerificationProgress currentStage={currentStage} />}
         </CardHeader>
         <CardContent className="p-4 md:p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
