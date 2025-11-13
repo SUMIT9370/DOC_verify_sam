@@ -12,7 +12,6 @@ import { ai } from '@/ai/genkit';
 import { z, run } from 'genkit';
 import { findMasterDocument } from '../tools/find-master-document';
 import * as fs from 'fs/promises';
-import * as os from 'os';
 import * as path from 'path';
 
 const VerifyDocumentInputSchema = z.object({
@@ -36,51 +35,12 @@ export async function verifyDocument(input: VerifyDocumentInput): Promise<Verify
   return verifyDocumentFlow(input);
 }
 
-const pythonExecutor = ai.defineTool(
-    {
-        name: 'pythonExecutor',
-        description: 'Runs a local python script to analyze a document image and returns the JSON output.',
-        inputSchema: z.object({
-            image_path: z.string().describe("The temporary path to the document image to be analyzed."),
-        }),
-        outputSchema: z.any(),
-    },
-    async (input) => {
-        // This tool executes the python script from the 'ml_model' directory.
-        // It assumes 'app.py' is the entry point and it will print JSON to stdout.
-        const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
-        const { stdout, stderr } = await run("streamlit", ["run", "app.py"], {
-            cwd: modelPath,
-        });
-
-        if (stderr) {
-            console.error("Python script stderr:", stderr);
-            // Don't throw for warnings, but log them. Some libraries print to stderr.
-        }
-        
-        try {
-            // Find the start of the JSON output
-            const jsonStartIndex = stdout.indexOf('{');
-            if (jsonStartIndex === -1) {
-                console.error("No JSON output found in stdout:", stdout);
-                throw new Error('No JSON output found from Python script.');
-            }
-            const jsonString = stdout.substring(jsonStartIndex);
-            return JSON.parse(jsonString);
-        } catch (e: any) {
-            console.error("Failed to parse python script output:", stdout);
-            throw new Error("Could not parse the output from the document analysis script.");
-        }
-    }
-);
-
-
 const verifyDocumentFlow = ai.defineFlow(
   {
     name: 'verifyDocumentFlow',
     inputSchema: VerifyDocumentInputSchema,
     outputSchema: VerifyDocumentOutputSchema,
-    tools: [findMasterDocument, pythonExecutor],
+    tools: [findMasterDocument],
   },
   async (input) => {
     // 1. Save the data URI to a temporary file
@@ -93,11 +53,29 @@ const verifyDocumentFlow = ai.defineFlow(
     
     let analysisResult;
     try {
-        analysisResult = await pythonExecutor({ image_path: tempImagePath });
+        const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
+        const scriptPath = path.join(modelPath, 'app.py');
+
+        // Execute the python script directly using genkit's run command
+        const { stdout, stderr } = await run("python3", [scriptPath, tempImagePath], {
+            cwd: modelPath,
+        });
+
+        if (stderr) {
+            console.warn("Python script stderr:", stderr); // Log warnings but don't fail
+        }
+        
+        try {
+            analysisResult = JSON.parse(stdout);
+        } catch (e) {
+            console.error("Failed to parse python script output:", stdout);
+            throw new Error("Could not parse the output from the document analysis script.");
+        }
 
         if (analysisResult.error) {
             throw new Error(`Analysis script returned an error: ${analysisResult.error}`)
         }
+
     } finally {
         // 3. Clean up the temporary file
         await fs.unlink(tempImagePath);
@@ -109,21 +87,22 @@ const verifyDocumentFlow = ai.defineFlow(
     
     // 5. Create a summary for the UI
     const detailsSummary = `
-      Overall Score: ${finalVerdict.overall_score.toFixed(2)}/100
-      Verdict: ${finalVerdict.verdict} (Confidence: ${finalVerdict.confidence})
-      ---
-      Stage Scores:
-      - ELA: ${finalVerdict.stage_scores.ela.toFixed(2)}
-      - OCR: ${finalVerdict.stage_scores.ocr.toFixed(2)}
-      - QR: ${finalVerdict.stage_scores.qr.toFixed(2)}
-      - Watermark: ${finalVerdict.stage_scores.watermark.toFixed(2)}
-      - Layout: ${finalVerdict.stage_scores.layout.toFixed(2)}
-      - ML Model: ${finalVerdict.stage_scores.ml.toFixed(2)}
+Overall Score: ${finalVerdict.overall_score.toFixed(2)}/100
+Verdict: ${finalVerdict.verdict} (Confidence: ${finalVerdict.confidence})
+---
+Stage Scores:
+- ELA: ${finalVerdict.stage_scores.ela.toFixed(2)}
+- OCR: ${finalVerdict.stage_scores.ocr.toFixed(2)}
+- QR: ${finalVerdict.stage_scores.qr.toFixed(2)}
+- Watermark: ${finalVerdict.stage_scores.watermark.toFixed(2)}
+- Layout: ${finalVerdict.stage_scores.layout.toFixed(2)}
+- ML Model: ${finalVerdict.stage_scores.ml.toFixed(2)}
     `;
 
     // 6. Try to find a master document using extracted data
     const ocrText = analysisResult.stage_results.ocr?.text || "";
-    const nameMatch = ocrText.match(/This certifies that ([\w\s-]+) has completed/);
+    // A more generic way to find a name, looking for a common pattern
+    const nameMatch = ocrText.match(/(?:This certifies that|is awarded to|Name:)\s*([\w\s-]+)/i);
     const studentName = nameMatch ? nameMatch[1].trim() : undefined;
 
     const masterDocResult = await findMasterDocument({

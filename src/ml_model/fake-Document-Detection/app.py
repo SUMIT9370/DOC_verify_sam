@@ -4,13 +4,12 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 import tempfile
 import time
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional, Tuple
 import json
 import sys
+import numpy as np
 
-# Since this is run from a different context, let's ensure utils are in the path
-sys.path.append(os.path.dirname(__file__))
+# Ensure utils are in the path when run from a different directory
+sys.path.append(str(Path(__file__).parent.resolve()))
 
 from PIL import Image
 import fitz  # PyMuPDF
@@ -28,45 +27,24 @@ from utils.config import (
 )
 from utils.logger import logger
 
-def run_analysis_pipeline(image_path: str) -> Tuple[Dict, Dict]:
-    """Execute all 7 analysis stages on a document image.
-    
-    Args:
-        image_path: Path to uploaded document image
-        
-    Returns:
-        Tuple of (stage_results_dict, final_verdict_dict)
-    """
+def run_analysis_pipeline(image_path: str):
+    """Execute all 7 analysis stages on a document image and return results."""
     results = {}
     
     # Stage 1: Error Level Analysis
     ela_map, anomaly = compute_ela_analysis(image_path)
     if ela_map is not None:
-        ela_path = ELA_OUTPUT_DIR / "ela_result.png"
-        save_ela_visualization(ela_map, str(ela_path))
-        results["image_quality"] = {
-            "anomaly_score": anomaly,
-            "visualization_path": str(ela_path)
-        }
+        results["image_quality"] = {"anomaly_score": anomaly}
     else:
-        results["image_quality"] = {"anomaly_score": 0.0, "visualization_path": None}
+        results["image_quality"] = {"anomaly_score": 0.0}
     
     # Stage 2: OCR Text Extraction
     ocr_engine = initialize_ocr_engine()
     ocr_data = extract_document_text(image_path, ocr_engine)
-    ocr_path = OCR_OUTPUT_DIR / "ocr_result.txt"
-    write_ocr_results(ocr_data, str(ocr_path))
-    results["ocr"] = {
-        **ocr_data,
-        "output_path": str(ocr_path)
-    }
+    results["ocr"] = ocr_data
     
     # Stage 3: QR Code Detection
     qr_data = find_qr_codes(image_path)
-    if qr_data["detected"]:
-        qr_path = QR_OUTPUT_DIR / "qr_annotated.png"
-        draw_qr_annotations(image_path, qr_data, str(qr_path))
-        qr_data["visualization_path"] = str(qr_path)
     results["qr"] = qr_data
     
     # Stage 4: Watermark Verification
@@ -77,10 +55,6 @@ def run_analysis_pipeline(image_path: str) -> Tuple[Dict, Dict]:
     
     # Stage 5: Layout Analysis
     layout_data = analyze_document_structure(image_path)
-    if layout_data["valid"]:
-        layout_path = LAYOUT_OUTPUT_DIR / "layout_visualization.png"
-        save_layout_overlay(image_path, layout_data, str(layout_path))
-        layout_data["visualization_path"] = str(layout_path)
     results["layout"] = layout_data
     
     # Stage 6: ML Classification
@@ -90,20 +64,15 @@ def run_analysis_pipeline(image_path: str) -> Tuple[Dict, Dict]:
     
     # Stage 7: Final Validation
     verdict = compute_final_verdict(results)
-    persist_analysis_log(results, verdict)
-    results["validation_log_path"] = str(Path("outputs/logs/last_run.json"))
     
     return results, verdict
 
 def main(image_path: str):
-    """Main function to run the analysis and print JSON output."""
+    """Main function to run the analysis and print JSON output to stdout."""
     try:
         stage_results, final_verdict = run_analysis_pipeline(image_path)
-        output = {
-            "stage_results": stage_results,
-            "final_verdict": final_verdict,
-        }
-        # A class to handle serialization of numpy types
+        
+        # This class helps serialize numpy types that are not JSON-native
         class NumpyEncoder(json.JSONEncoder):
             def default(self, obj):
                 if isinstance(obj, (np.integer, np.floating, np.bool_)):
@@ -112,36 +81,31 @@ def main(image_path: str):
                     return obj.tolist()
                 return super(NumpyEncoder, self).default(obj)
         
-        # We need to serialize the output to JSON before printing it to stdout
-        # because the calling Genkit flow expects JSON.
-        # We also have to remove non-serializable data.
-        if 'ocr' in output['stage_results']:
-            # Bbox is a numpy array which is not serializable by default
-            if 'words' in output['stage_results']['ocr']:
-                for word in output['stage_results']['ocr']['words']:
-                    if 'bbox' in word:
-                        del word['bbox']
+        # Prepare the final output object
+        output = {
+            "stage_results": stage_results,
+            "final_verdict": final_verdict,
+        }
 
-        # Print the JSON to stdout so the Genkit flow can capture it.
+        # Clean up non-serializable data before printing
+        if 'ocr' in output['stage_results'] and 'words' in output['stage_results']['ocr']:
+            for word in output['stage_results']['ocr']['words']:
+                if 'bbox' in word:
+                    del word['bbox']
+
+        # Print the final JSON to stdout
         print(json.dumps(output, cls=NumpyEncoder))
 
     except Exception as e:
-        logger.error(f"An error occurred in the main analysis pipeline: {e}")
+        logger.error(f"An error occurred in the main analysis pipeline: {e}", exc_info=True)
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
 
 if __name__ == '__main__':
-    # This script is designed to be called with the image path as an argument.
-    # However, for simplicity in the Genkit 'run' command which doesn't easily pass args,
-    # we will search for the latest uploaded image in the directory.
-    # This is a HACK for this prototype environment. A real system would use a proper API.
-    
-    # Find the most recently created PNG file in the current directory.
-    script_dir = Path(__file__).parent
-    files = list(script_dir.glob('upload_*.png'))
-    if not files:
-        print(json.dumps({"error": "No upload_*.png file found to process."}))
+    # The script expects the image path as the first command-line argument.
+    if len(sys.argv) < 2:
+        print(json.dumps({"error": "No image path provided as an argument."}))
         sys.exit(1)
-
-    latest_file = max(files, key=os.path.getctime)
-    main(str(latest_file))
+    
+    input_image_path = sys.argv[1]
+    main(input_image_path)
