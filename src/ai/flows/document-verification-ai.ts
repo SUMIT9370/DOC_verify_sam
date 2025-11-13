@@ -9,8 +9,9 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z, run } from 'genkit';
+import { z } from 'genkit';
 import { findMasterDocument } from '../tools/find-master-document';
+import { pythonExecutor } from '../tools/python-executor';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -18,7 +19,7 @@ const VerifyDocumentInputSchema = z.object({
   documentDataUri: z
     .string()
     .describe(
-      "A photo of a document, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A photo of a document, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
 });
 export type VerifyDocumentInput = z.infer<typeof VerifyDocumentInputSchema>;
@@ -41,7 +42,7 @@ const verifyDocumentFlow = ai.defineFlow(
     name: 'verifyDocumentFlow',
     inputSchema: VerifyDocumentInputSchema,
     outputSchema: VerifyDocumentOutputSchema,
-    tools: [findMasterDocument],
+    tools: [findMasterDocument, pythonExecutor],
   },
   async (input) => {
     // 1. Save the data URI to a temporary file
@@ -53,33 +54,8 @@ const verifyDocumentFlow = ai.defineFlow(
     
     let analysisResult;
     try {
-        // 2. Define path to the python script
-        const modelPath = path.join(process.cwd(), 'ml_model', 'fake-Document-Detection');
-        const scriptPath = path.join(modelPath, 'app.py');
-
-        // Execute the script using genkit's 'run' command
-        const { stdout, stderr } = await run("python3", [scriptPath, tempImagePath], {
-            cwd: modelPath,
-        });
-
-        if (stderr) {
-            // Log stderr but don't immediately fail, as some libraries write warnings here.
-            console.warn("Python script stderr:", stderr);
-        }
-
-        if (!stdout) {
-            throw new Error("Python script produced no output.");
-        }
-
-        try {
-            analysisResult = JSON.parse(stdout);
-            if (analysisResult.error) {
-                throw new Error(`Analysis script returned an error: ${analysisResult.error}`);
-            }
-        } catch (e) {
-            console.error("Failed to parse python script output:", stdout);
-            throw new Error("Could not parse the output from the document analysis script.");
-        }
+        // 2. Execute the python script using the dedicated tool
+        analysisResult = await pythonExecutor({ imagePath: tempImagePath });
 
     } finally {
         // 3. Clean up the temporary file
