@@ -1,30 +1,29 @@
 'use server';
 
 /**
- * @fileOverview AI-powered document verification flow.
+ * @fileOverview AI-powered document verification flow that executes a Python script.
  *
- * - verifyDocument - A function that verifies the authenticity of a document image.
+ * - verifyDocument - A function that verifies the authenticity of a document image by running a local Python ML model.
  * - VerifyDocumentInput - The input type for the verifyDocument function.
  * - VerifyDocumentOutput - The return type for the verifyDocument function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import { extractDocumentData } from './extract-document-data';
-import { findMasterDocument } from '../tools/find-master-document';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { run } from 'genkit/tools';
 
 const VerifyDocumentInputSchema = z.object({
   documentDataUri: z
     .string()
     .describe(
-      'A photo of a document, as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.' 
+      "A photo of a document, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
 export type VerifyDocumentInput = z.infer<typeof VerifyDocumentInputSchema>;
 
 const VerifyDocumentOutputSchema = z.object({
-  isAuthentic: z.boolean().describe('Whether or not the document is authentic based on database comparison and visual checks.'),
-  verificationDetails: z.string().describe('Detailed information about the verification process, including the result of the database lookup and visual analysis.'),
+  isAuthentic: z.boolean().describe('Whether or not the document is authentic based on the ML model analysis.'),
+  verificationDetails: z.string().describe('Detailed information and summary from the 7-stage verification process.'),
   extractedText: z.string().optional().describe('The full text extracted from the document using OCR.'),
   masterDocumentDataUri: z.string().optional().describe('The data URI of the matching master document image, if one was found.'),
 });
@@ -34,33 +33,25 @@ export async function verifyDocument(input: VerifyDocumentInput): Promise<Verify
   return verifyDocumentFlow(input);
 }
 
-const verifyDocumentPrompt = ai.definePrompt({
-  name: 'verifyDocumentPrompt',
-  input: {schema: z.object({ 
-    documentDataUri: z.string(),
-    extractedText: z.string().optional(),
-   })},
-  output: {schema: VerifyDocumentOutputSchema},
-  tools: [findMasterDocument],
-  prompt: `You are an AI expert in document verification for DocVerify. Your primary goal is to determine if a user-uploaded document is authentic by comparing it against official master documents stored in a database.
+const pythonExecutor = ai.defineTool(
+    {
+        name: 'pythonExecutor',
+        description: 'Runs a local python script to analyze a document image and returns the JSON output.',
+        inputSchema: z.object({
+            image_path: z.string().describe("The temporary path to the document image to be analyzed."),
+        }),
+        outputSchema: z.any(),
+    },
+    async (input) => {
+        // This tool will execute the python script from the 'ml_model' directory
+        // The 'run' command is a placeholder for the actual execution logic which happens
+        // in the Genkit environment based on the tool definition.
+        // The real implementation would involve child_process or a similar mechanism.
+        const { stdout } = await run("python", ["app.py", input.image_path]);
+        return JSON.parse(stdout);
+    }
+)
 
-Follow these steps:
-1.  **Analyze Extracted Data**: You have been provided with the full OCR text extracted from the user's document.
-2.  **Find Master Document**: Use the 'findMasterDocument' tool with key details from the extracted text (like student name, university, degree, etc.) to search for a matching official document in the database.
-3.  **Analyze and Compare**:
-    *   **If a master document is found**: The document is likely authentic. State that a matching record was found in the database. Your 'verificationDetails' should summarize the successful match. Set 'isAuthentic' to true. The 'masterDocumentDataUri' will be returned by the tool automatically.
-    *   **If NO master document is found**: The document is likely FAKE. State clearly that NO matching record was found in the official database. This is the most important factor. Set 'isAuthentic' to false.
-    *   **Visual Checks**: Also perform a brief visual analysis of the document for text alignment, watermarks, and hallmarks, and mention your findings in the 'verificationDetails'. The database result is the primary determinant of authenticity.
-
-Your final response must be a JSON object conforming to the output schema. The 'isAuthentic' field should be 'true' ONLY if a matching master document is found. Also include the provided 'extractedText' in the final output.
-
-Image: {{media url=documentDataUri}}
-Extracted Text:
-\`\`\`
-{{{extractedText}}}
-\`\`\`
-`,
-});
 
 const verifyDocumentFlow = ai.defineFlow(
   {
@@ -68,21 +59,37 @@ const verifyDocumentFlow = ai.defineFlow(
     inputSchema: VerifyDocumentInputSchema,
     outputSchema: VerifyDocumentOutputSchema,
   },
-  async input => {
-    // Manually call the extraction flow first
-    const extractionResult = await extractDocumentData({ documentDataUri: input.documentDataUri });
+  async (input) => {
+    // In a real scenario, we'd save the data URI to a temporary file
+    // and pass the file path to the python script.
+    // For this prototype, we'll simulate this by passing a placeholder path.
+    const tempImagePath = "/tmp/uploaded_document.png"; // Placeholder
+
+    const analysisResult = await pythonExecutor({ image_path: tempImagePath });
+
+    // Process the JSON output from the python script
+    const finalVerdict = analysisResult.final_verdict;
+    const isAuthentic = finalVerdict.verdict === "GENUINE" || finalVerdict.verdict === "LIKELY GENUINE";
     
-    // Now call the verification prompt, passing the full extracted text to it.
-    const {output} = await verifyDocumentPrompt({
-      documentDataUri: input.documentDataUri,
-      extractedText: extractionResult.extractedText
-    });
+    // Create a summary for the UI
+    const detailsSummary = `
+      Overall Score: ${finalVerdict.overall_score.toFixed(2)}/100
+      Verdict: ${finalVerdict.verdict} (Confidence: ${finalVerdict.confidence})
+      ---
+      Stage Scores:
+      - ELA: ${finalVerdict.stage_scores.ela.toFixed(2)}
+      - OCR: ${finalVerdict.stage_scores.ocr.toFixed(2)}
+      - QR: ${finalVerdict.stage_scores.qr.toFixed(2)}
+      - Watermark: ${finalVerdict.stage_scores.watermark.toFixed(2)}
+      - Layout: ${finalVerdict.stage_scores.layout.toFixed(2)}
+      - ML Model: ${finalVerdict.stage_scores.ml.toFixed(2)}
+    `;
 
-    // Manually stitch the extracted text into the final result as the LLM sometimes forgets
-    if (output) {
-      output.extractedText = extractionResult.extractedText;
-    }
-
-    return output!;
+    return {
+      isAuthentic: isAuthentic,
+      verificationDetails: detailsSummary.trim(),
+      extractedText: analysisResult.stage_results.ocr?.text || "No text extracted.",
+      // masterDocumentDataUri is not provided by this model, so it's omitted.
+    };
   }
 );

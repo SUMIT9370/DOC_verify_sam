@@ -72,7 +72,7 @@ export function MasterDocumentList() {
                   <DialogTrigger asChild>
                     <TableRow className="cursor-pointer">
                       <TableCell className="font-medium">{doc.documentType}</TableCell>
-                      <TableCell>{doc.documentData?.studentName || doc.documentData?.employeeName || 'N/A'}</TableCell>
+                      <TableCell>{doc.documentData?.studentName || doc.documentData?.applicantName || doc.documentData?.fullName || 'N/A'}</TableCell>
                       <TableCell className="text-right">{Object.keys(doc.documentData).length}</TableCell>
                     </TableRow>
                   </DialogTrigger>
