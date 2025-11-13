@@ -121,7 +121,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
                 {/* Master Document */}
                 <div className="space-y-3">
                     <h3 className="font-semibold flex items-center gap-2"><BookMarked className="h-5 w-5 text-primary" /> Master Document</h3>
-                    <div className="aspect-w-4 aspect-h-3 relative rounded-md border p-1 bg-white">
+                    <div className="aspect-w-4 aspect-h-3 relative rounded-md border p-1 bg-white h-60">
                        {isVerifying && !result?.masterDocumentDataUri && (
                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                                <Loader2 className="h-8 w-8 animate-spin mb-2" />
@@ -150,7 +150,7 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
                 {/* Uploaded Document */}
                 <div className="space-y-3">
                      <h3 className="font-semibold flex items-center gap-2"><Upload className="h-5 w-5 text-primary" /> Uploaded Document</h3>
-                     <div className="aspect-w-4 aspect-h-3 relative rounded-md border p-1 bg-white">
+                     <div className="aspect-w-4 aspect-h-3 relative rounded-md border p-1 bg-white h-60">
                         <Image
                             src={file.preview}
                             alt={file.name}
