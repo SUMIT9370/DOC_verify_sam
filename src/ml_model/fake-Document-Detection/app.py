@@ -58,10 +58,8 @@ def run_analysis_pipeline(image_path: str):
     results["layout"] = layout_data
     
     # Stage 6: ML Classification
-    # Note: Using a dummy implementation for the ML model for now as it requires a .pth file
-    # model, device = load_classifier_model() 
-    # ml_result = classify_document(image_path, model, device)
-    ml_result = {"is_genuine": True, "confidence": 0.9, "class": "GENUINE", "probabilities": {"fake": 0.1, "genuine": 0.9}}
+    model, device = load_classifier_model() 
+    ml_result = classify_document(image_path, model, device)
     results["ml_model"] = ml_result
     
     # Stage 7: Final Validation
