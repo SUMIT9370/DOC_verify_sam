@@ -1,99 +1,74 @@
-
-/**
- * @fileOverview Firestore Security Rules for DocVerify.
- *
- * Core Philosophy:
- * This ruleset enforces a role-based access control model with a focus on user-owned data and admin-protected resources.
- * The comments have been updated to reflect that admins have read access to certain user data for auditing.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles; access is restricted to the user themselves. The 'isAdmin' flag is on this document.
- * - /users/{userId}/verification_history/{historyId}: Stores verification histories for each user; only the user can write to their history, but admins can also read it for auditing.
- * - /document_masters/{masterId}: Stores document master templates; only admins can create, read, update, or delete these.
- * - /admin_dashboards/{dashboardId}: Stores admin dashboard data; only admins have access.
- *
- * Key Security Decisions:
- * - User data is owned by the user. While admins have read access to verification history for auditing, users retain write control over their own data.
- * - Admin-level functionality is protected behind an `isAdmin` flag on the user document.
- * - Data validation during write operations is minimized in this prototyping phase, focusing on authorization and relationship integrity.
- * - List operations are generally allowed for user-owned data but restricted for admin data.
- *
- * Denormalization for Authorization:
- * - The `isAdmin` flag is stored directly on the user document to avoid costly `get()` calls to a separate roles collection.
- *
- * Structural Segregation:
- * - Different data types (user profiles, documents, verification checks) are stored in separate collections to simplify rule logic and improve performance.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Allows users to manage their own profiles. The isAdmin flag is stored here.
-     *              The `get` rule is CRITICAL for the isAdmin() helper function to work correctly.
-     * @path /users/{userId}
-     */
-    match /users/{userId} {
-      // Users can get their own document. This is required for the isAdmin() function to work.
-      allow get: if request.auth.uid == userId;
-      allow list: if false; // Users should not be able to list other users.
-      allow create: if isNewOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-
-      /**
-       * @description Allows users to manage their own history, and admins to read it.
-       * @path /users/{userId}/verification_history/{historyId}
-       */
-      match /verification_history/{historyId} {
-        allow read: if isOwner(userId) || isAdmin(); // Admin can read anyone's history
-        allow write: if isOwner(userId); // Only the user can create/update their own history
-      }
-    }
-
-    /**
-     * @description Allows admins to manage document master templates.
-     * @path /document_masters/{masterId}
-     */
-    match /document_masters/{masterId} {
-      allow get, list: if isAdmin(); // Use explicit get, list
-      allow write: if isAdmin() && isRequestingUser(request.resource.data.creatorUid);
-    }
-
-    /**
-     * @description Allows admins to manage admin dashboard data.
-     * @path /admin_dashboards/{dashboardId}
-     */
-    match /admin_dashboards/{dashboardId} {
-        // Admins can read, write, update, and delete dashboard data.
-      allow read, write: if isAdmin();
-    }
-
-    // Helper functions
+    // Helper: signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Helper: requestor owns the path's userId
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isRequestingUser(uid) {
-        return isSignedIn() && request.auth.uid == uid;
-    }
-
-    function isNewOwner(userId) {
-        return isRequestingUser(userId) && request.resource.data.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    // Correctly checks for the 'isAdmin' flag directly on the user's document.
-    // This function relies on the `allow get` rule on `/users/{userId}` to work.
+    // Robust isAdmin check: only true if the user doc exists and has isAdmin == true
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      if (!isSignedIn()) { return false; }
+      let u = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && u.data.isAdmin == true;
+    }
+
+    /**
+     * USERS collection
+     * - Clients can create their own profile but cannot set isAdmin to true.
+     * - Clients can update their own profile but cannot change the isAdmin field.
+     */
+    match /users/{userId} {
+      // Anyone signed in can create their own profile BUT isAdmin must not be true in request.
+      allow create: if isSignedIn()
+                    && request.auth.uid == userId
+                    && ( !(request.resource.data.keys().hasAny(['isAdmin'])) // no isAdmin field
+                         || request.resource.data.isAdmin == false );
+
+      // Owner can read own doc. This is critical for the isAdmin() helper to work.
+      allow get: if isOwner(userId) || isAdmin();
+
+      // Owner can update their doc but cannot change isAdmin
+      allow update: if isOwner(userId)
+                    && resource.data.isAdmin == request.resource.data.isAdmin; // cannot toggle isAdmin
+
+      // Owner can delete own profile (optional; consider server-side delete rules if needed)
+      allow delete: if isOwner(userId);
+
+      // verification_history: user writes, owner or admin reads
+      match /verification_history/{historyId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId);
+      }
+    }
+
+    /**
+     * document_masters
+     * - Only admins can manage templates.
+     * - On create, ensure creatorUid matches request.auth.uid (optional).
+     */
+    match /document_masters/{masterId} {
+      allow get, list: if isAdmin();
+
+      // Create: admin only, and creatorUid must equal auth.uid if present.
+      allow create: if isAdmin()
+                    && ( !('creatorUid' in request.resource.data) || request.resource.data.creatorUid == request.auth.uid );
+
+      // Update & delete: admin only.
+      allow update, delete: if isAdmin();
+    }
+
+    /**
+     * admin_dashboards: admin-only collection
+     */
+    match /admin_dashboards/{dashboardId} {
+      allow read, write: if isAdmin();
     }
   }
 }
