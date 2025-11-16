@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -62,6 +63,7 @@ export function SignUpForm() {
   useEffect(() => {
     const processRedirect = async () => {
       if (auth && firestore) {
+        setIsProcessingRedirect(true);
         try {
           const result = await getRedirectResult(auth);
           if (result) {
@@ -96,7 +98,7 @@ export function SignUpForm() {
     };
 
     processRedirect();
-  }, [auth, firestore, router, userType]);
+  }, [auth, firestore, userType]);
 
 
   useEffect(() => {
