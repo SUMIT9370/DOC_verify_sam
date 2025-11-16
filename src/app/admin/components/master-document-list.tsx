@@ -48,10 +48,12 @@ export function MasterDocumentList() {
   }, [firestore, user?.uid]);
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
-  const isAdmin = userProfile?.isAdmin === true;
+  
+  // Determine if the user is an admin AFTER the profile has loaded
+  const isAdmin = !isProfileLoading && userProfile?.isAdmin === true;
 
   const mastersQuery = useMemoFirebase(() => {
-    // Only build the query if the user is confirmed to be an admin
+    // Only build the query if we have confirmed the user is an admin.
     if (!firestore || !isAdmin) return null;
     return query(
       collection(firestore, 'document_masters'),
@@ -66,7 +68,7 @@ export function MasterDocumentList() {
     return format(timestamp.toDate(), 'PPP p');
   };
 
-  // The component is loading if we are still checking for a user, checking the profile, or fetching masters (if admin).
+  // The component is loading if we are checking for a user, their profile, OR fetching masters (if they are an admin).
   const isLoading = isUserLoading || isProfileLoading || (isAdmin && isMastersLoading);
 
   return (
