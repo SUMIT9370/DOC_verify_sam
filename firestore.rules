@@ -52,8 +52,8 @@ service cloud.firestore {
      * @path /document_masters/{masterId}
      */
     match /document_masters/{masterId} {
-      // Admins can read, write, update, and delete master documents.
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if isAdmin() && request.resource.data.creatorUid == request.auth.uid;
     }
 
     /**

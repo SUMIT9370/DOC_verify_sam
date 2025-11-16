@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,8 +22,8 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { useFirestore } from '@/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -125,6 +126,7 @@ export function IssueDocumentForm() {
   const [selectedDocType, setSelectedDocType] = useState<DocumentTypeConfig | null>(null);
 
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
 
   const form = useForm({
@@ -160,10 +162,10 @@ export function IssueDocumentForm() {
 
 
   async function onSubmit(values: z.infer<z.ZodObject<any>>) {
-    if (!firestore) {
+    if (!firestore || !user) {
       toast({
         title: 'Error',
-        description: 'Database not available. Please try again later.',
+        description: 'You must be logged in to issue a document.',
         variant: 'destructive',
       });
       return;
@@ -183,6 +185,9 @@ export function IssueDocumentForm() {
     const dataToSave = {
       documentType: selectedDocType.label, // Use the user-friendly label
       documentData: documentData,
+      creatorUid: user.uid,
+      creatorEmail: user.email,
+      createdAt: serverTimestamp(),
     };
 
     const mastersCollection = collection(firestore, 'document_masters');

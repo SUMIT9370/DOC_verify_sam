@@ -1,12 +1,13 @@
+
 'use client';
 
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, File as FileIcon, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { extractDocumentData, type ExtractDocumentDataOutput } from '@/ai/flows/extract-document-data';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -32,6 +33,7 @@ export function MasterUploader() {
   const [error, setError] = useState<string | null>(null);
   
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -57,7 +59,14 @@ export function MasterUploader() {
   });
 
   const handleProcessAndSave = async () => {
-    if (!file || !firestore) return;
+    if (!file || !firestore || !user) {
+        toast({
+            title: 'Error',
+            description: 'You must be logged in to upload a master document.',
+            variant: 'destructive',
+          });
+        return;
+    }
 
     setIsProcessing(true);
     setResult(null);
@@ -74,6 +83,9 @@ export function MasterUploader() {
         documentData: extractedData.documentData,
         documentDataUri: dataUri, // Store the full Data URI
         extractedText: extractedData.extractedText,
+        creatorUid: user.uid,
+        creatorEmail: user.email,
+        createdAt: serverTimestamp(),
       };
 
       addDoc(mastersCollection, dataToSave)

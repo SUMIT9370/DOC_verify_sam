@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { collection, query, orderBy, doc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, Timestamp } from 'firebase/firestore';
 import Image from 'next/image';
 import {
   Table,
@@ -22,12 +23,15 @@ import {
   DialogTrigger,
   DialogDescription,
 } from "@/components/ui/dialog"
+import { format } from 'date-fns';
 
 type DocumentMaster = {
   id: string;
   documentType: string;
   documentData: Record<string, any>;
   documentDataUri?: string; // The Base64 data URI
+  creatorEmail?: string;
+  createdAt?: Timestamp;
 };
 
 type UserProfile = {
@@ -51,11 +55,16 @@ export function MasterDocumentList() {
     if (!firestore || !isAdmin) return null;
     return query(
       collection(firestore, 'document_masters'),
-      orderBy('documentType', 'asc')
+      orderBy('createdAt', 'desc')
     );
   }, [firestore, isAdmin]);
 
   const { data: masters, isLoading: isMastersLoading } = useCollection<DocumentMaster>(mastersQuery);
+
+  const formatDate = (timestamp?: Timestamp) => {
+    if (!timestamp) return 'N/A';
+    return format(timestamp.toDate(), 'PPP p');
+  };
 
   // The component is loading if we are still checking for a user, checking the profile, or fetching masters (if admin).
   const isLoading = isUserLoading || isProfileLoading || (isAdmin && isMastersLoading);
@@ -65,7 +74,7 @@ export function MasterDocumentList() {
       <CardHeader>
         <CardTitle>Issued Document Masters</CardTitle>
         <CardDescription>
-          A list of all master documents currently in the database. Click a row to see details.
+          A list of all master documents currently in the database, ordered by most recent.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -75,13 +84,15 @@ export function MasterDocumentList() {
               <TableRow>
                 <TableHead>Document Type</TableHead>
                 <TableHead>Primary Holder</TableHead>
-                <TableHead className="text-right">Extracted Fields</TableHead>
+                <TableHead>Created By</TableHead>
+                <TableHead className="text-right">Date Issued</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                 </TableRow>
@@ -92,14 +103,15 @@ export function MasterDocumentList() {
                     <TableRow className="cursor-pointer">
                       <TableCell className="font-medium">{doc.documentType}</TableCell>
                       <TableCell>{doc.documentData?.studentName || doc.documentData?.applicantName || doc.documentData?.fullName || 'N/A'}</TableCell>
-                      <TableCell className="text-right">{Object.keys(doc.documentData).length}</TableCell>
+                      <TableCell className="text-muted-foreground">{doc.creatorEmail || 'N/A'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{formatDate(doc.createdAt)}</TableCell>
                     </TableRow>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl">
                     <DialogHeader>
                       <DialogTitle>{doc.documentType}</DialogTitle>
                       <DialogDescription>
-                        ID: {doc.id}
+                        Issued by: {doc.creatorEmail || 'Unknown'} on {formatDate(doc.createdAt)}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
