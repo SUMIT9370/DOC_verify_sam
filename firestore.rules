@@ -63,13 +63,13 @@ service cloud.firestore {
     /**
      * @description Allows admins to manage document master templates.
      * @path /document_masters/{masterId}
-     * @allow (get, list) Any user can read existing document masters.
+     * @allow (get, list) Only admins can read existing document masters.
      * @allow (create, update, delete) Only admins can create, update, or delete document masters.
      * @deny (create, update, delete) Non-admin users cannot create, update, or delete document masters.
      * @principle Restricts access to document master templates to admin users.
      */
     match /document_masters/{masterId} {
-      allow get, list: if true;
+      allow get, list: if isAdmin();
       allow create: if isAdmin();
       allow update: if isAdmin() && resource != null;
       allow delete: if isAdmin() && resource != null;

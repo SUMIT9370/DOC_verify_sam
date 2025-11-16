@@ -31,12 +31,12 @@ type DocumentMaster = {
 };
 
 type UserProfile = {
-    isAdmin: boolean;
+    isAdmin?: boolean;
 }
 
 export function MasterDocumentList() {
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -57,8 +57,8 @@ export function MasterDocumentList() {
 
   const { data: masters, isLoading: isMastersLoading } = useCollection<DocumentMaster>(mastersQuery);
 
-  // The component is loading if we are still checking the profile or fetching masters (if admin).
-  const isLoading = isProfileLoading || (isAdmin && isMastersLoading);
+  // The component is loading if we are still checking for a user, checking the profile, or fetching masters (if admin).
+  const isLoading = isUserLoading || isProfileLoading || (isAdmin && isMastersLoading);
 
   return (
     <Card>
@@ -133,7 +133,7 @@ export function MasterDocumentList() {
               <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No Masters Found</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Issue a new document master using one of the forms on this page.
+                {isAdmin ? "Issue a new document master using one of the forms on this page." : "You do not have permission to view master documents."}
               </p>
             </div>
           )}
