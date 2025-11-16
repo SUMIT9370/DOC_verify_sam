@@ -1,7 +1,7 @@
 'use client';
 
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
 import Image from 'next/image';
 import {
   Table,
@@ -30,18 +30,35 @@ type DocumentMaster = {
   documentDataUri?: string; // The Base64 data URI
 };
 
+type UserProfile = {
+    isAdmin: boolean;
+}
+
 export function MasterDocumentList() {
   const firestore = useFirestore();
+  const { user } = useUser();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user?.uid]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
+  const isAdmin = userProfile?.isAdmin === true;
 
   const mastersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Only build the query if the user is confirmed to be an admin
+    if (!firestore || !isAdmin) return null;
     return query(
       collection(firestore, 'document_masters'),
       orderBy('documentType', 'asc')
     );
-  }, [firestore]);
+  }, [firestore, isAdmin]);
 
-  const { data: masters, isLoading } = useCollection<DocumentMaster>(mastersQuery);
+  const { data: masters, isLoading: isMastersLoading } = useCollection<DocumentMaster>(mastersQuery);
+
+  // The component is loading if we are still checking the profile or fetching masters.
+  const isLoading = isProfileLoading || (isAdmin && isMastersLoading);
 
   return (
     <Card>
