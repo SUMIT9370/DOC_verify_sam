@@ -26,9 +26,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignUp, initiateSignInWithRedirect } from '@/firebase/non-blocking-login';
-import { GithubAuthProvider, GoogleAuthProvider, User } from 'firebase/auth';
-import { useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { GithubAuthProvider, GoogleAuthProvider, User, getRedirectResult } from 'firebase/auth';
+import { useEffect, useState } from 'react';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -45,6 +45,7 @@ export function SignUpForm() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,31 +56,77 @@ export function SignUpForm() {
       displayName: '',
     },
   });
+  
+  const userType = form.watch('userType');
 
   useEffect(() => {
-    if (!isUserLoading && user && firestore) {
-      const createUserProfile = async (firebaseUser: User) => {
-        const userProfile = {
-            id: firebaseUser.uid,
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName || form.getValues('displayName'),
-            photoURL: firebaseUser.photoURL,
-            userType: form.getValues('userType'),
-            // isAdmin is not set here by default for security
-        };
+    const processRedirect = async () => {
+      if (auth && firestore) {
+        try {
+          const result = await getRedirectResult(auth);
+          if (result) {
+            // This means a user has just signed in via redirect (e.g., Google)
+            const firebaseUser = result.user;
+            const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+            const userDoc = await getDoc(userDocRef);
 
-        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        await setDoc(userDocRef, userProfile, { merge: true });
-        
-        router.push('/dashboard');
+            if (!userDoc.exists()) {
+              // It's a new user, create their profile
+              const userProfile = {
+                  id: firebaseUser.uid,
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  photoURL: firebaseUser.photoURL,
+                  userType: userType, // Get the selected user type from the form state
+              };
+              await setDoc(userDocRef, userProfile);
+            }
+            router.push('/dashboard');
+          }
+        } catch (error) {
+          console.error("Error processing redirect result:", error);
+        } finally {
+            setIsProcessingRedirect(false);
+        }
+      } else {
+        setIsProcessingRedirect(false);
       }
-      createUserProfile(user);
+    };
+
+    processRedirect();
+  }, [auth, firestore, router, userType]);
+
+
+  useEffect(() => {
+    // This handles existing sessions or email sign-ups
+    if (!isUserLoading && user && !isProcessingRedirect) {
+        router.push('/dashboard');
     }
-  }, [user, isUserLoading, router, firestore, form]);
+  }, [user, isUserLoading, isProcessingRedirect, router]);
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    await initiateEmailSignUp(auth, values.email, values.password);
+    if (!auth || !firestore) return;
+    try {
+        const userCredential = await initiateEmailSignUp(auth, values.email, values.password);
+        if (userCredential && userCredential.user) {
+            const firebaseUser = userCredential.user;
+            const userProfile = {
+                id: firebaseUser.uid,
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: values.displayName, // Use name from form
+                photoURL: firebaseUser.photoURL,
+                userType: values.userType,
+            };
+            const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+            await setDoc(userDocRef, userProfile);
+            // The useEffect will handle the redirect
+        }
+    } catch(error) {
+        console.error("Email sign up error", error);
+    }
   }
 
   const handleGoogleSignIn = () => {
@@ -94,7 +141,7 @@ export function SignUpForm() {
     initiateSignInWithRedirect(auth, githubProvider);
   };
 
-  if (isUserLoading || user) {
+  if (isUserLoading || isProcessingRedirect || user) {
     return <div className="flex justify-center items-center p-8">Loading...</div>;
   }
 
