@@ -71,8 +71,8 @@ export function MasterDocumentList() {
     return format(timestamp.toDate(), 'PPP p');
   };
 
-  // The component is in a loading state if we are still verifying the user or their profile.
-  const isLoading = isUserLoading || isProfileLoading;
+  // The component is in a loading state if we are still verifying the user or their profile OR if we are an admin and masters are loading.
+  const isLoading = isUserLoading || isProfileLoading || (isAdmin && isMastersLoading);
 
   return (
     <Card>
@@ -168,4 +168,3 @@ export function MasterDocumentList() {
     </Card>
   );
 }
-
