@@ -7,12 +7,12 @@
  *
  * Data Structure:
  * - /users/{userId}: Stores user profiles; access is restricted to the user themselves. The 'isAdmin' flag is on this document.
- * - /users/{userId}/verification_history/{historyId}: Stores verification histories for each user; only the user can access their history. Admins can also read this.
+ * - /users/{userId}/verification_history/{historyId}: Stores verification histories for each user; only the user can write to their history, but admins can also read it for auditing.
  * - /document_masters/{masterId}: Stores document master templates; only admins can create, read, update, or delete these.
  * - /admin_dashboards/{dashboardId}: Stores admin dashboard data; only admins have access.
  *
  * Key Security Decisions:
- * - User data is strictly owned and controlled by the user.
+ * - User data is owned by the user. While admins have read access to verification history for auditing, users retain write control over their own data.
  * - Admin-level functionality is protected behind an `isAdmin` flag on the user document.
  * - Data validation during write operations is minimized in this prototyping phase, focusing on authorization and relationship integrity.
  * - List operations are generally allowed for user-owned data but restricted for admin data.
