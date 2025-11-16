@@ -24,6 +24,7 @@ export default function AdminPage() {
 
     // State to hold the definitive admin status
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
     
     // State for stats
     const [stats, setStats] = useState({ masters: 0, verifications: 0, users: 0 });
@@ -44,21 +45,23 @@ export default function AdminPage() {
         }
     }, [router]);
 
-    // Determine admin status once profile is loaded
+    // This effect runs once to determine the user's admin status.
     useEffect(() => {
-        if (!isProfileLoading && userProfile) {
-            setIsAdmin(userProfile.isAdmin === true);
+        if (!isUserLoading && !isProfileLoading) {
+            setIsAdmin(userProfile?.isAdmin === true);
+            setIsCheckingAdmin(false);
         }
-    }, [isProfileLoading, userProfile]);
+    }, [isUserLoading, isProfileLoading, userProfile]);
     
-    // Fetch stats ONLY if the user is confirmed to be an admin
+    // This effect runs ONLY AFTER the admin check is complete and successful.
     useEffect(() => {
+        if (isCheckingAdmin) return; // Do not run if we are still checking for admin status
+
         if (isAdmin && firestore) {
             const fetchStats = async () => {
                 setIsStatsLoading(true);
                 try {
                     const mastersQuery = query(collection(firestore, 'document_masters'));
-                    // Use collectionGroup to count all verifications across all users
                     const verificationsQuery = query(collectionGroup(firestore, 'verification_history'));
                     const usersQuery = query(collection(firestore, 'users'));
                     
@@ -75,21 +78,23 @@ export default function AdminPage() {
                     });
                 } catch (error) {
                     console.error("Error fetching admin stats:", error);
-                    // Optionally set an error state to show in the UI
+                } finally {
+                    setIsStatsLoading(false);
                 }
-                setIsStatsLoading(false);
             };
             fetchStats();
-        } else if (!isUserLoading && !isProfileLoading) {
-            // If we know the user is not an admin, stop loading
+        } else {
+            // If user is not an admin, we're done loading stats (they are 0).
             setIsStatsLoading(false);
         }
-    }, [isAdmin, firestore, isUserLoading, isProfileLoading]);
+    }, [isAdmin, isCheckingAdmin, firestore]);
 
     const handleLogout = () => {
         sessionStorage.removeItem('isAdminAuthenticated');
         router.push('/admin/login');
     }
+
+    const isLoading = isUserLoading || isCheckingAdmin || isStatsLoading;
 
     return (
         <div className="min-h-screen bg-muted/40 p-4 sm:p-6 md:p-8">
@@ -111,7 +116,7 @@ export default function AdminPage() {
                             <BookUser className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{isStatsLoading ? '...' : stats.masters}</div>
+                            <div className="text-2xl font-bold">{isLoading ? '...' : stats.masters}</div>
                              <p className="text-xs text-muted-foreground">Total master templates in DB</p>
                         </CardContent>
                     </Card>
@@ -121,7 +126,7 @@ export default function AdminPage() {
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{isStatsLoading ? '...' : stats.users}</div>
+                            <div className="text-2xl font-bold">{isLoading ? '...' : stats.users}</div>
                              <p className="text-xs text-muted-foreground">Total registered users</p>
                         </CardContent>
                     </Card>
@@ -131,7 +136,7 @@ export default function AdminPage() {
                             <History className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{isStatsLoading ? '...' : stats.verifications}</div>
+                            <div className="text-2xl font-bold">{isLoading ? '...' : stats.verifications}</div>
                              <Button size="sm" variant="outline" className="mt-1" asChild>
                                 <Link href="/admin/history">View History</Link>
                              </Button>

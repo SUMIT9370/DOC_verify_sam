@@ -34,7 +34,7 @@ service cloud.firestore {
 
       // Owner can read own doc. Admins can list all users (for stats).
       allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin(); // <-- FIX: Allow admins to list users for stats count
+      allow list: if isAdmin(); // <-- Allow admins to list users for stats count
 
       // Owner can update their doc but cannot change isAdmin
       allow update: if isOwner(userId)
