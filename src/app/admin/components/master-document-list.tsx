@@ -27,7 +27,7 @@ type DocumentMaster = {
   id: string;
   documentType: string;
   documentData: Record<string, any>;
-  documentImageUrl?: string; // The URL from Firebase Storage
+  documentDataUri?: string; // The Base64 data URI
 };
 
 export function MasterDocumentList() {
@@ -95,8 +95,8 @@ export function MasterDocumentList() {
                         <div className="space-y-2">
                              <h4 className="font-semibold">Document Image</h4>
                              <div className="relative aspect-video rounded-md border bg-muted flex items-center justify-center">
-                                {doc.documentImageUrl ? (
-                                    <Image src={doc.documentImageUrl} alt={doc.documentType} fill className="object-contain" />
+                                {doc.documentDataUri ? (
+                                    <Image src={doc.documentDataUri} alt={doc.documentType} fill className="object-contain" />
                                 ) : (
                                     <div className="text-center text-muted-foreground">
                                         <ImageIcon className="h-10 w-10 mx-auto" />

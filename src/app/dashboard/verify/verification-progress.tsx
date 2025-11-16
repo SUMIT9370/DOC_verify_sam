@@ -19,6 +19,7 @@ import { useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp, addDoc } from 'firebase/firestore';
 import { StagedVerificationProgress, type VerificationStage } from './staged-verification-progress';
 
+
 interface VerificationProgressProps {
   file: File & { preview: string };
   autoStart: boolean;
@@ -55,18 +56,20 @@ export function VerificationProgress({ file, autoStart }: VerificationProgressPr
       }
       
       try {
-        setCurrentStage('uploading');
+        // No upload stage needed now
+        setCurrentStage('analyzing'); 
         const dataUri = await fileToDataUri(file);
         
-        setCurrentStage('analyzing'); // Switch to a general 'analyzing' state
         const aiResult = await verifyDocument({ documentDataUri: dataUri });
         setResult(aiResult);
         
         setCurrentStage('saving');
         const historyCollection = collection(firestore, 'users', user.uid, 'verification_history');
+        
+        // Save the full Data URI to Firestore for the history record
         await addDoc(historyCollection, {
             documentName: file.name,
-            documentUrl: dataUri, // Save the image data directly
+            documentUrl: dataUri, // <-- Storing the Data URI
             isAuthentic: aiResult.isAuthentic,
             verificationDetails: aiResult.verificationDetails,
             timestamp: serverTimestamp()

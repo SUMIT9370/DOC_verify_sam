@@ -30,7 +30,7 @@ type VerificationHistoryItem = {
     documentName: string;
     isAuthentic: boolean;
     verificationDetails: string;
-    documentUrl: string; // Now a Base64 Data URI
+    documentUrl: string; // This is a Base64 Data URI
     timestamp: {
         seconds: number;
         nanoseconds: number;
@@ -108,7 +108,7 @@ export default function HistoryPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                                         <div className="space-y-4">
                                             <h4 className="font-semibold">Verification Details</h4>
-                                            <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{item.verificationDetails}</p>
+                                            <pre className="text-sm text-muted-foreground p-3 bg-muted rounded-md whitespace-pre-wrap font-mono max-h-60 overflow-auto">{item.verificationDetails}</pre>
                                              <h4 className="font-semibold">Status</h4>
                                              <Badge variant={item.isAuthentic ? 'default' : 'destructive'} className={item.isAuthentic ? 'bg-green-600' : ''}>
                                                 {item.isAuthentic ? 'Authentic' : 'Fake Detected'}

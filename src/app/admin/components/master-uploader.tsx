@@ -4,14 +4,12 @@ import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, File as FileIcon, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFirestore, useStorage } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { extractDocumentData, type ExtractDocumentDataOutput } from '@/ai/flows/extract-document-data';
 import { collection, addDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { v4 as uuidv4 } from 'uuid';
 
 
 type FileWithPreview = File & {
@@ -34,7 +32,6 @@ export function MasterUploader() {
   const [error, setError] = useState<string | null>(null);
   
   const firestore = useFirestore();
-  const storage = useStorage();
   const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -55,34 +52,27 @@ export function MasterUploader() {
     accept: {
       'image/*': [],
     },
-    maxSize: 1024 * 1024 * 5, // 5MB
+    maxSize: 1024 * 1024 * 1, // 1MB size limit
     multiple: false,
   });
 
   const handleProcessAndSave = async () => {
-    if (!file || !firestore || !storage) return;
+    if (!file || !firestore) return;
 
     setIsProcessing(true);
     setResult(null);
     setError(null);
 
     try {
-      // 1. Upload file to Firebase Storage
-      const storageRef = ref(storage, `master_documents/${uuidv4()}-${file.name}`);
-      const uploadResult = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(uploadResult.ref);
-
-      // 2. Get Data URI for AI processing (this is temporary for the AI call)
       const dataUri = await fileToDataUri(file);
       const extractedData = await extractDocumentData({ documentDataUri: dataUri });
       setResult(extractedData);
 
-      // 3. Save to Firestore with the Storage URL, not the Data URI
       const mastersCollection = collection(firestore, 'document_masters');
       const dataToSave = {
         documentType: extractedData.documentType,
         documentData: extractedData.documentData,
-        documentImageUrl: downloadURL, // Store the efficient URL
+        documentDataUri: dataUri, // Store the full Data URI
         extractedText: extractedData.extractedText,
       };
 
@@ -103,14 +93,12 @@ export function MasterUploader() {
                 requestResourceData: dataToSave,
             });
             errorEmitter.emit('permission-error', permissionError);
-            // We don't need to set local error state here as the global listener will throw
             setIsProcessing(false);
         });
 
     } catch (e: any) {
-      // This will catch errors from the AI flow, file reading, or storage upload
       console.error(e);
-      const errorMessage = 'Failed to process and save the document. Please try again.';
+      const errorMessage = 'Failed to process and save the document. The file might be too large or the AI service failed.';
       setError(errorMessage);
        toast({
           title: 'Processing Error',
@@ -133,7 +121,7 @@ export function MasterUploader() {
           <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg text-center h-full">
               <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
               <p className="font-semibold">Processing Document...</p>
-              <p className="text-sm text-muted-foreground">Uploading to storage & analyzing with AI. Please wait.</p>
+              <p className="text-sm text-muted-foreground">Analyzing with AI. Please wait.</p>
           </div>
       )
   }
@@ -176,7 +164,7 @@ export function MasterUploader() {
             ? 'Drop the file here...'
             : "Drag 'n' drop a master document, or click to select a file"}
         </p>
-        <p className="text-xs text-muted-foreground">Image files up to 5MB</p>
+        <p className="text-xs text-muted-foreground">Image files up to 1MB</p>
       </div>
       
       {file && (

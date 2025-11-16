@@ -7,5 +7,11 @@ service firebase.storage {
     match /user_uploads/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // THIS RULE IS NO LONGER NEEDED AS WE ARE NOT USING STORAGE FOR MASTERS
+    // match /master_documents/{allPaths=**} {
+    //     allow read: if request.auth != null; // Allow any authenticated user to read
+    //     allow write: if request.auth != null && get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    // }
   }
 }

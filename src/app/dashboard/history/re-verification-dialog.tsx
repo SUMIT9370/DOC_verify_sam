@@ -12,7 +12,7 @@ interface ReVerificationDialogProps {
   onClose: () => void;
   item: {
     documentName: string;
-    documentUrl: string;
+    documentUrl: string; // This is a Base64 Data URI
   };
 }
 
@@ -33,7 +33,10 @@ export function ReVerificationDialog({ isOpen, onClose, item }: ReVerificationDi
     const runVerification = async () => {
       try {
         setCurrentStage('analyzing');
+        
+        // The item.documentUrl is already a Data URI
         const aiResult = await verifyDocument({ documentDataUri: item.documentUrl });
+
         setResult(aiResult);
         setCurrentStage('complete');
       } catch (e: any) {
