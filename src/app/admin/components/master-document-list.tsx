@@ -42,6 +42,7 @@ export function MasterDocumentList() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
+  // 1. Get the current user's profile to check for isAdmin flag
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, 'users', user.uid);
@@ -49,14 +50,15 @@ export function MasterDocumentList() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
   
-  // This flag is now the single source of truth for admin status.
+  // 2. This flag is now the single source of truth for admin status.
   const isAdmin = !isUserLoading && !isProfileLoading && userProfile?.isAdmin === true;
-  const canAttemptQuery = !isUserLoading && !isProfileLoading; // We can only know if they are NOT an admin after loading is done.
+  // A flag to know when we can definitively say if the user is an admin or not.
+  const canAttemptQuery = !isUserLoading && !isProfileLoading;
 
 
+  // 3. **CRITICAL FIX**: Only build the query if we have confirmed the user is an admin.
+  // If we haven't checked yet, or if they are not an admin, this MUST return null.
   const mastersQuery = useMemoFirebase(() => {
-    // **CRITICAL FIX**: Only build the query if we have confirmed the user is an admin.
-    // If we haven't checked yet, or if they are not an admin, this MUST return null.
     if (!firestore || !isAdmin) return null;
     return query(
       collection(firestore, 'document_masters'),
@@ -71,7 +73,7 @@ export function MasterDocumentList() {
     return format(timestamp.toDate(), 'PPP p');
   };
 
-  // The component is in a loading state if we are still verifying the user or their profile OR if we are an admin and masters are loading.
+  // The component is in a loading state if we are still verifying the user or their profile, OR if we are an admin and the masters list is loading.
   const isLoading = isUserLoading || isProfileLoading || (isAdmin && isMastersLoading);
 
   return (
