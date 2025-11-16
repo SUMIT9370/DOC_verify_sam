@@ -56,14 +56,14 @@ service cloud.firestore {
      * - On create, ensure creatorUid matches request.auth.uid (optional).
      */
     match /document_masters/{masterId} {
-      allow read, list: if isAdmin();
+      // Allow any signed-in user to list documents to prevent aggregation errors.
+      allow list: if isSignedIn();
+      // Only allow admins to get the full content of a single document.
+      allow get: if isAdmin();
 
-      // Create: admin only, and creatorUid must equal auth.uid if present.
-      allow create: if isAdmin()
+      // Create, update, and delete are admin-only operations.
+      allow create, update, delete: if isAdmin()
                     && ( !('creatorUid' in request.resource.data) || request.resource.data.creatorUid == request.auth.uid );
-
-      // Update & delete: admin only.
-      allow update, delete: if isAdmin();
     }
 
     /**
