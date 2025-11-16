@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Firestore Security Rules for DocVerify.
  *
@@ -5,9 +6,9 @@
  * This ruleset enforces a role-based access control model with a focus on user-owned data and admin-protected resources.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles; access is restricted to the user themselves.
+ * - /users/{userId}: Stores user profiles; access is restricted to the user themselves. The 'isAdmin' flag is on this document.
  * - /users/{userId}/verification_history/{historyId}: Stores verification histories for each user; only the user can access their history.
- * - /document_masters/{masterId}: Stores document master templates; only admins can create, update, or delete these.
+ * - /document_masters/{masterId}: Stores document master templates; only admins can create, read, update, or delete these.
  * - /admin_dashboards/{dashboardId}: Stores admin dashboard data; only admins have access.
  *
  * Key Security Decisions:
@@ -27,17 +28,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to manage their own profiles.
+     * @description Allows users to manage their own profiles. The isAdmin flag is stored here.
      * @path /users/{userId}
-     * @allow (create) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can create their own profile if their UID matches the {userId} parameter.
-     * @allow (get, update, delete) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can read, update, or delete their own profile.
-     * @deny (create) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' cannot create a profile with a different {userId}.
-     * @deny (get, update, delete) User 'randomUserId' cannot read, update, or delete User 'BjtRMzHAp9OW27q60hjLVlkmeH12's profile.
-     * @principle Enforces user ownership for profile data.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // Users should not be able to list other users.
       allow create: if isNewOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
@@ -46,48 +42,27 @@ service cloud.firestore {
     /**
      * @description Allows users to manage their own verification history.
      * @path /users/{userId}/verification_history/{historyId}
-     * @allow (create) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can create a history entry under their own user ID.
-     * @allow (get, list, update, delete) User 'BjtRMzHAp9OW27q60hjLVlkmeH12' can read, list, update, or delete their own history entries.
-     * @deny (create) User 'randomUserId' cannot create a history entry under User 'BjtRMzHAp9OW27q60hjLVlkmeH12's ID.
-     * @deny (get, list, update, delete) User 'randomUserId' cannot read, list, update, or delete User 'BjtRMzHAp9OW27q60hjLVlkmeH12's history entries.
-     * @principle Enforces user ownership for verification history data.
      */
     match /users/{userId}/verification_history/{historyId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get, list, create, update, delete: if isOwner(userId);
     }
 
     /**
      * @description Allows admins to manage document master templates.
      * @path /document_masters/{masterId}
-     * @allow (get, list) Only admins can read existing document masters.
-     * @allow (create, update, delete) Only admins can create, update, or delete document masters.
-     * @deny (create, update, delete) Non-admin users cannot create, update, or delete document masters.
-     * @principle Restricts access to document master templates to admin users.
      */
     match /document_masters/{masterId} {
-      allow get, list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      // Admins can read, write, update, and delete master documents.
+      allow read, write: if isAdmin();
     }
 
     /**
      * @description Allows admins to manage admin dashboard data.
      * @path /admin_dashboards/{dashboardId}
-     * @allow (get, list) Only admins can read admin dashboard data.
-     * @allow (create, update, delete) Only admins can create, update, or delete admin dashboard data.
-     * @deny (get, list, create, update, delete) Non-admin users cannot access admin dashboard data.
-     * @principle Restricts access to admin dashboard data to admin users.
      */
     match /admin_dashboards/{dashboardId} {
-      allow get, list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+        // Admins can read, write, update, and delete dashboard data.
+      allow read, write: if isAdmin();
     }
 
     // Helper functions
@@ -96,17 +71,18 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isNewOwner(userId) {
-        return request.auth.uid == userId && request.resource.data.id == userId;
+        return isSignedIn() && request.auth.uid == userId && request.resource.data.uid == userId;
     }
 
     function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
     }
 
+    // Correctly checks for the 'isAdmin' flag directly on the user's document.
     function isAdmin() {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }

@@ -74,7 +74,7 @@ export function SignUpForm() {
 
             if (!userDoc.exists()) {
               // It's a new user, create their profile
-              const userProfile = {
+              const userProfile: any = {
                   id: firebaseUser.uid,
                   uid: firebaseUser.uid,
                   email: firebaseUser.email,
@@ -82,9 +82,12 @@ export function SignUpForm() {
                   photoURL: firebaseUser.photoURL,
                   userType: userType, // Get the selected user type from the form state
               };
+               // ** FIX: Add isAdmin flag for specific emails **
+              if (firebaseUser.email === 'sp936145@gmail.com') {
+                userProfile.isAdmin = true;
+              }
               await setDoc(userDocRef, userProfile);
             }
-            // Intentionally do not redirect here; let the other useEffect handle it.
           }
         } catch (error) {
           console.error("Error processing redirect result:", error);
@@ -92,7 +95,6 @@ export function SignUpForm() {
             setIsProcessingRedirect(false);
         }
       } else {
-        // If auth isn't ready, we're not processing a redirect.
         setIsProcessingRedirect(false);
       }
     };
@@ -102,7 +104,6 @@ export function SignUpForm() {
 
 
   useEffect(() => {
-    // This handles existing sessions or redirects AFTER the redirect is processed.
     if (!isUserLoading && user && !isProcessingRedirect) {
         router.push('/dashboard');
     }
@@ -115,17 +116,20 @@ export function SignUpForm() {
         const userCredential = await initiateEmailSignUp(auth, values.email, values.password);
         if (userCredential && userCredential.user) {
             const firebaseUser = userCredential.user;
-            const userProfile = {
+            const userProfile: any = {
                 id: firebaseUser.uid,
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
-                displayName: values.displayName, // Use name from form
+                displayName: values.displayName,
                 photoURL: firebaseUser.photoURL,
                 userType: values.userType,
             };
+            // ** FIX: Add isAdmin flag for specific emails **
+            if (firebaseUser.email === 'sp936145@gmail.com') {
+                userProfile.isAdmin = true;
+            }
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
             await setDoc(userDocRef, userProfile);
-            // The useEffect will handle the redirect
         }
     } catch(error) {
         console.error("Email sign up error", error);
