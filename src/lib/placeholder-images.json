@@ -3,19 +3,19 @@
     {
       "id": "hero",
       "description": "Abstract image representing document verification",
-      "imageUrl": "https://images.unsplash.com/photo-1618069416986-eb1677ba3cc9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxkb2N1bWVudCUyMHZlcmlmaWNhdGlvbnxlbnwwfHx8fDE3NjEyNzc5MTd8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "document verification"
+      "imageUrl": "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzZWN1cmUlMjBkb2N1bWVudHxlbnwwfHx8fDE3NjEzNzY4ODR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "secure document"
     },
     {
       "id": "about1",
       "description": "Digital India program logo concept",
-      "imageUrl": "https://images.unsplash.com/photo-1683560901896-52ed09af616f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxkaWdpdGFsJTIwaW5kaWF8ZW58MHx8fHwxNzYxMjc3OTE3fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "digital india"
+      "imageUrl": "https://images.unsplash.com/photo-1621253450905-ea5705335602?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxnb3Zlcm5tZW50JTIwb2YlMjBpbmRpYXxlbnwwfHx8fDE3NjEzNzY5NDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "government india"
     },
     {
       "id": "about2",
       "description": "A person securely using a laptop, representing secure technology",
-      "imageUrl": "https://images.unsplash.com/photo-1632910110458-435eb54b8d9a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzZWN1cmUlMjB0ZWNobm9sb2d5fGVufDB8fHx8MTc2MTI3NzkxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1526374965328-5f61d4dc18c5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzZWN1cmUlMjB0ZWNobm9sb2d5fGVufDB8fHx8MTc2MTI3NzkxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "secure technology"
     },
     {
