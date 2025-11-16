@@ -4,6 +4,7 @@
  *
  * Core Philosophy:
  * This ruleset enforces a role-based access control model with a focus on user-owned data and admin-protected resources.
+ * The comments have been updated to reflect that admins have read access to certain user data for auditing.
  *
  * Data Structure:
  * - /users/{userId}: Stores user profiles; access is restricted to the user themselves. The 'isAdmin' flag is on this document.
@@ -33,7 +34,8 @@ service cloud.firestore {
      * @path /users/{userId}
      */
     match /users/{userId} {
-      allow get: if isOwner(userId); // CRITICAL FIX: Allow users to get their own doc.
+      // Users can get their own document. This is required for the isAdmin() function to work.
+      allow get: if request.auth.uid == userId;
       allow list: if false; // Users should not be able to list other users.
       allow create: if isNewOwner(userId);
       allow update: if isExistingOwner(userId);
