@@ -49,17 +49,20 @@ export function MasterDocumentList() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
   
-  // Determine if the user is an admin AFTER the profile has loaded
-  const isAdmin = !isProfileLoading && userProfile?.isAdmin === true;
+  // This flag is now the single source of truth for admin status.
+  const isAdmin = !isUserLoading && !isProfileLoading && userProfile?.isAdmin === true;
+  const canAttemptQuery = !isUserLoading && !isProfileLoading; // We can only know if they are NOT an admin after loading is done.
+
 
   const mastersQuery = useMemoFirebase(() => {
-    // Only build the query if we have confirmed the user is an admin.
+    // **CRITICAL FIX**: Only build the query if we have confirmed the user is an admin.
+    // If we haven't checked yet, or if they are not an admin, this MUST return null.
     if (!firestore || !isAdmin) return null;
     return query(
       collection(firestore, 'document_masters'),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, isAdmin]);
+  }, [firestore, isAdmin]); // The dependency is now directly on the 'isAdmin' boolean.
 
   const { data: masters, isLoading: isMastersLoading } = useCollection<DocumentMaster>(mastersQuery);
 
@@ -68,8 +71,8 @@ export function MasterDocumentList() {
     return format(timestamp.toDate(), 'PPP p');
   };
 
-  // The component is loading if we are checking for a user, their profile, OR fetching masters (if they are an admin).
-  const isLoading = isUserLoading || isProfileLoading || (isAdmin && isMastersLoading);
+  // The component is in a loading state if we are still verifying the user or their profile.
+  const isLoading = isUserLoading || isProfileLoading;
 
   return (
     <Card>
@@ -99,7 +102,7 @@ export function MasterDocumentList() {
                   <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                 </TableRow>
               ))}
-              {!isLoading && masters && masters.map((doc) => (
+              {!isLoading && isAdmin && masters?.map((doc) => (
                 <Dialog key={doc.id}>
                   <DialogTrigger asChild>
                     <TableRow className="cursor-pointer">
@@ -142,12 +145,21 @@ export function MasterDocumentList() {
               ))}
             </TableBody>
           </Table>
-          {!isLoading && (!masters || masters.length === 0) && (
+          {canAttemptQuery && !isAdmin && (
+            <div className="text-center p-10">
+              <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">Permission Denied</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                You do not have permission to view master documents.
+              </p>
+            </div>
+          )}
+          {canAttemptQuery && isAdmin && !isMastersLoading && (!masters || masters.length === 0) && (
             <div className="text-center p-10">
               <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No Masters Found</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {isAdmin ? "Issue a new document master using one of the forms on this page." : "You do not have permission to view master documents."}
+                Issue a new document master using one of the forms on this page.
               </p>
             </div>
           )}
@@ -156,3 +168,4 @@ export function MasterDocumentList() {
     </Card>
   );
 }
+
