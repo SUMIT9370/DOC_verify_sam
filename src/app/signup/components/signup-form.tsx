@@ -82,7 +82,7 @@ export function SignUpForm() {
               };
               await setDoc(userDocRef, userProfile);
             }
-            router.push('/dashboard');
+            // Intentionally do not redirect here; let the other useEffect handle it.
           }
         } catch (error) {
           console.error("Error processing redirect result:", error);
@@ -90,6 +90,7 @@ export function SignUpForm() {
             setIsProcessingRedirect(false);
         }
       } else {
+        // If auth isn't ready, we're not processing a redirect.
         setIsProcessingRedirect(false);
       }
     };
@@ -99,7 +100,7 @@ export function SignUpForm() {
 
 
   useEffect(() => {
-    // This handles existing sessions or email sign-ups
+    // This handles existing sessions or redirects AFTER the redirect is processed.
     if (!isUserLoading && user && !isProcessingRedirect) {
         router.push('/dashboard');
     }
