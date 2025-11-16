@@ -57,7 +57,7 @@ export function MasterDocumentList() {
 
   const { data: masters, isLoading: isMastersLoading } = useCollection<DocumentMaster>(mastersQuery);
 
-  // The component is loading if we are still checking the profile or fetching masters.
+  // The component is loading if we are still checking the profile or fetching masters (if admin).
   const isLoading = isProfileLoading || (isAdmin && isMastersLoading);
 
   return (
