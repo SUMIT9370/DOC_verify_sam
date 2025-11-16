@@ -30,12 +30,14 @@ export const pythonExecutor = ai.defineTool(
 
     // Use a Promise to handle the asynchronous nature of the child process
     return new Promise((resolve, reject) => {
+      // Determine the python command. Use an environment variable for the path if provided, otherwise default to 'python'.
+      // This allows for environment-specific configuration without hardcoding paths.
+      const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || 'python';
+
       // Spawn the Python process.
-      // Using { shell: true } allows the OS to find the python executable in the path.
-      // This is a more robust way to handle different environments.
-      const pythonProcess = spawn('python', [scriptPath, input.imagePath], {
+      const pythonProcess = spawn(pythonCommand, [scriptPath, input.imagePath], {
         cwd: modelPath,
-        shell: true,
+        shell: true, // Use shell to help resolve paths and handle permissions
       });
 
       let stdoutData = '';
