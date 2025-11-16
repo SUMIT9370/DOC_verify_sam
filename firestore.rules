@@ -7,7 +7,7 @@
  *
  * Data Structure:
  * - /users/{userId}: Stores user profiles; access is restricted to the user themselves. The 'isAdmin' flag is on this document.
- * - /users/{userId}/verification_history/{historyId}: Stores verification histories for each user; only the user can access their history.
+ * - /users/{userId}/verification_history/{historyId}: Stores verification histories for each user; only the user can access their history. Admins can also read this.
  * - /document_masters/{masterId}: Stores document master templates; only admins can create, read, update, or delete these.
  * - /admin_dashboards/{dashboardId}: Stores admin dashboard data; only admins have access.
  *
@@ -37,14 +37,15 @@ service cloud.firestore {
       allow create: if isNewOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
-    }
 
-    /**
-     * @description Allows users to manage their own verification history.
-     * @path /users/{userId}/verification_history/{historyId}
-     */
-    match /users/{userId}/verification_history/{historyId} {
-      allow get, list, create, update, delete: if isOwner(userId);
+      /**
+       * @description Allows users to manage their own history, and admins to read it.
+       * @path /users/{userId}/verification_history/{historyId}
+       */
+      match /verification_history/{historyId} {
+        allow read: if isOwner(userId) || isAdmin(); // Admin can read anyone's history
+        allow write: if isOwner(userId); // Only the user can create/update their own history
+      }
     }
 
     /**
@@ -53,7 +54,7 @@ service cloud.firestore {
      */
     match /document_masters/{masterId} {
       allow read: if isAdmin();
-      allow write: if isAdmin() && request.resource.data.creatorUid == request.auth.uid;
+      allow write: if isAdmin() && isRequestingUser(request.resource.data.creatorUid);
     }
 
     /**
@@ -74,8 +75,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isRequestingUser(uid) {
+        return isSignedIn() && request.auth.uid == uid;
+    }
+
     function isNewOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId && request.resource.data.uid == userId;
+        return isRequestingUser(userId) && request.resource.data.uid == userId;
     }
 
     function isExistingOwner(userId) {

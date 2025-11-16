@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,9 +9,12 @@ import {
   FirestoreError,
   QuerySnapshot,
   CollectionReference,
+  doc,
+  getDoc,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useFirestore } from '..';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -60,9 +64,10 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
+  const firestore = useFirestore();
 
   useEffect(() => {
-    if (!memoizedTargetRefOrQuery) {
+    if (!memoizedTargetRefOrQuery || !firestore) {
       setData(null);
       setIsLoading(false);
       setError(null);
@@ -75,11 +80,31 @@ export function useCollection<T = any>(
     // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
-      (snapshot: QuerySnapshot<DocumentData>) => {
+      async (snapshot: QuerySnapshot<DocumentData>) => {
         const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
+        
+        // For collectionGroup queries, we need to fetch the parent user data
+        const isCollectionGroup = memoizedTargetRefOrQuery.type === 'query' && (memoizedTargetRefOrQuery as any)._query.isCollectionGroupQuery;
+
+        for (const document of snapshot.docs) {
+            let docData = document.data() as T;
+            let userData = null;
+
+            if (isCollectionGroup) {
+                // The parent of a doc in a subcollection is the user doc
+                const userRef = document.ref.parent.parent;
+                if (userRef) {
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()) {
+                        userData = { uid: userSnap.id, email: userSnap.data().email };
+                    }
+                }
+                // Add user data to the document
+                docData = { ...docData, user: userData };
+            }
+            results.push({ ...(docData), id: document.id });
         }
+
         setData(results);
         setError(null);
         setIsLoading(false);
@@ -106,7 +131,8 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  }, [memoizedTargetRefOrQuery, firestore]); // Re-run if the target query/reference changes.
+  
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     console.warn('The query passed to useCollection was not memoized with useMemoFirebase. This can lead to infinite loops.', memoizedTargetRefOrQuery);
   }
