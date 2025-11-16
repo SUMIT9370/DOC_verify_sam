@@ -8,10 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { MasterUploader } from "./components/master-uploader";
 import { IssueDocumentForm } from "./components/issue-document-form";
 import { Button } from '@/components/ui/button';
-import { BookUser, FileCheck2, FileUp, History, Users } from 'lucide-react';
+import { BookUser, History, Users } from 'lucide-react';
 import { MasterDocumentList } from './components/master-document-list';
 import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getCountFromServer, doc, collectionGroup } from 'firebase/firestore';
+import { collection, query, getCountFromServer, doc, collectionGroup } from 'firebase/firestore';
 
 type UserProfile = {
     isAdmin?: boolean;
@@ -48,12 +48,13 @@ export default function AdminPage() {
     // This effect runs once to determine the user's admin status.
     useEffect(() => {
         if (!isUserLoading && !isProfileLoading) {
-            setIsAdmin(userProfile?.isAdmin === true);
+            const adminStatus = userProfile?.isAdmin === true;
+            setIsAdmin(adminStatus);
             setIsCheckingAdmin(false);
         }
     }, [isUserLoading, isProfileLoading, userProfile]);
     
-    // This effect runs ONLY AFTER the admin check is complete and successful.
+    // This effect runs ONLY AFTER the admin check is complete.
     useEffect(() => {
         if (isCheckingAdmin) return; // Do not run if we are still checking for admin status
 
@@ -144,7 +145,8 @@ export default function AdminPage() {
                     </Card>
                 </div>
 
-                <MasterDocumentList />
+                {/* ** FIX: Pass isAdmin prop and only render after check is complete ** */}
+                { !isCheckingAdmin && <MasterDocumentList isAdmin={isAdmin} /> }
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     <Card>

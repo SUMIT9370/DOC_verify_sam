@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { collection, query, orderBy, doc, Timestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import Image from 'next/image';
 import {
   Table,
@@ -34,30 +34,11 @@ type DocumentMaster = {
   createdAt?: Timestamp;
 };
 
-type UserProfile = {
-    isAdmin?: boolean;
-}
-
-export function MasterDocumentList() {
+// ** FIX: The component now accepts isAdmin as a prop **
+export function MasterDocumentList({ isAdmin }: { isAdmin: boolean }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
 
-  // 1. Get the current user's profile to check for isAdmin flag
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user?.uid]);
-
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
-  
-  // 2. This flag is now the single source of truth for admin status.
-  const isAdmin = !isUserLoading && !isProfileLoading && userProfile?.isAdmin === true;
-  // A flag to know when we can definitively say if the user is an admin or not.
-  const canAttemptQuery = !isUserLoading && !isProfileLoading;
-
-
-  // 3. **CRITICAL FIX**: Only build the query if we have confirmed the user is an admin.
-  // If we haven't checked yet, or if they are not an admin, this MUST return null.
+  // ** FIX: The query is only built if isAdmin is true, otherwise it's null **
   const mastersQuery = useMemoFirebase(() => {
     if (!firestore || !isAdmin) return null; // <--- The critical check
     return query(
@@ -66,16 +47,33 @@ export function MasterDocumentList() {
     );
   }, [firestore, isAdmin]); // The dependency is now directly on the 'isAdmin' boolean.
 
-  // 4. The hook will now only run the query if mastersQuery is not null.
-  const { data: masters, isLoading: isMastersLoading } = useCollection<DocumentMaster>(mastersQuery);
+  // The hook will only run the query if mastersQuery is not null.
+  const { data: masters, isLoading } = useCollection<DocumentMaster>(mastersQuery);
 
   const formatDate = (timestamp?: Timestamp) => {
     if (!timestamp) return 'N/A';
     return format(timestamp.toDate(), 'PPP p');
   };
 
-  // The component is in a loading state if we are still verifying the user or their profile, OR if we are an admin and the masters list is loading.
-  const isLoading = isUserLoading || isProfileLoading || (isAdmin && isMastersLoading);
+  // ** FIX: A specific guard clause for non-admin users **
+  if (!isAdmin) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Issued Document Masters</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="text-center p-10 border rounded-lg">
+                    <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">Permission Denied</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        You do not have permission to view this resource.
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
 
   return (
     <Card>
@@ -105,7 +103,7 @@ export function MasterDocumentList() {
                   <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                 </TableRow>
               ))}
-              {!isLoading && isAdmin && masters?.map((doc) => (
+              {!isLoading && masters?.map((doc) => (
                 <Dialog key={doc.id}>
                   <DialogTrigger asChild>
                     <TableRow className="cursor-pointer">
@@ -146,26 +144,21 @@ export function MasterDocumentList() {
                   </DialogContent>
                 </Dialog>
               ))}
+               {!isLoading && (!masters || masters.length === 0) && (
+                <TableRow>
+                    <TableCell colSpan={4}>
+                         <div className="text-center p-10">
+                            <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-lg font-semibold">No Masters Found</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Issue a new document master using one of the forms below.
+                            </p>
+                        </div>
+                    </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
-          {canAttemptQuery && !isAdmin && (
-            <div className="text-center p-10">
-              <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">Permission Denied</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                You do not have permission to view master documents.
-              </p>
-            </div>
-          )}
-          {canAttemptQuery && isAdmin && !isMastersLoading && (!masters || masters.length === 0) && (
-            <div className="text-center p-10">
-              <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No Masters Found</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Issue a new document master using one of the forms on this page.
-              </p>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
