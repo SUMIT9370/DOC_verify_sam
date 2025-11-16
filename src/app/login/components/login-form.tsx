@@ -47,7 +47,9 @@ export function LoginForm() {
   }, [user, isUserLoading, router]);
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    initiateEmailSignIn(auth, values.email, values.password);
+    if (auth) {
+        initiateEmailSignIn(auth, values.email, values.password);
+    }
   }
 
   const handleGoogleSignIn = () => {
