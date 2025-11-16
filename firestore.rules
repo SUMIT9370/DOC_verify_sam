@@ -29,10 +29,11 @@ service cloud.firestore {
 
     /**
      * @description Allows users to manage their own profiles. The isAdmin flag is stored here.
+     *              The `get` rule is CRITICAL for the isAdmin() helper function to work correctly.
      * @path /users/{userId}
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId); // CRITICAL FIX: Allow users to get their own doc.
       allow list: if false; // Users should not be able to list other users.
       allow create: if isNewOwner(userId);
       allow update: if isExistingOwner(userId);
@@ -53,7 +54,7 @@ service cloud.firestore {
      * @path /document_masters/{masterId}
      */
     match /document_masters/{masterId} {
-      allow read: if isAdmin();
+      allow get, list: if isAdmin(); // Use explicit get, list
       allow write: if isAdmin() && isRequestingUser(request.resource.data.creatorUid);
     }
 
@@ -88,6 +89,7 @@ service cloud.firestore {
     }
 
     // Correctly checks for the 'isAdmin' flag directly on the user's document.
+    // This function relies on the `allow get` rule on `/users/{userId}` to work.
     function isAdmin() {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
