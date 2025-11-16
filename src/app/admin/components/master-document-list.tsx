@@ -59,13 +59,14 @@ export function MasterDocumentList() {
   // 3. **CRITICAL FIX**: Only build the query if we have confirmed the user is an admin.
   // If we haven't checked yet, or if they are not an admin, this MUST return null.
   const mastersQuery = useMemoFirebase(() => {
-    if (!firestore || !isAdmin) return null;
+    if (!firestore || !isAdmin) return null; // <--- The critical check
     return query(
       collection(firestore, 'document_masters'),
       orderBy('createdAt', 'desc')
     );
   }, [firestore, isAdmin]); // The dependency is now directly on the 'isAdmin' boolean.
 
+  // 4. The hook will now only run the query if mastersQuery is not null.
   const { data: masters, isLoading: isMastersLoading } = useCollection<DocumentMaster>(mastersQuery);
 
   const formatDate = (timestamp?: Timestamp) => {

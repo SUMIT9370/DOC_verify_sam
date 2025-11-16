@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -31,8 +32,9 @@ service cloud.firestore {
                     && ( !(request.resource.data.keys().hasAny(['isAdmin'])) // no isAdmin field
                          || request.resource.data.isAdmin == false );
 
-      // Owner can read own doc. This is critical for the isAdmin() helper to work.
+      // Owner can read own doc. Admins can list all users (for stats).
       allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); // <-- FIX: Allow admins to list users for stats count
 
       // Owner can update their doc but cannot change isAdmin
       allow update: if isOwner(userId)
@@ -54,7 +56,7 @@ service cloud.firestore {
      * - On create, ensure creatorUid matches request.auth.uid (optional).
      */
     match /document_masters/{masterId} {
-      allow get, list: if isAdmin();
+      allow read, list: if isAdmin();
 
       // Create: admin only, and creatorUid must equal auth.uid if present.
       allow create: if isAdmin()
@@ -69,6 +71,14 @@ service cloud.firestore {
      */
     match /admin_dashboards/{dashboardId} {
       allow read, write: if isAdmin();
+    }
+
+    /**
+     * verification_history (collection group)
+     * - Admins can read (list) histories from all users.
+     */
+    match /{path=**}/verification_history/{historyId} {
+      allow read: if isAdmin();
     }
   }
 }

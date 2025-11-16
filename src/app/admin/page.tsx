@@ -10,15 +10,32 @@ import { IssueDocumentForm } from "./components/issue-document-form";
 import { Button } from '@/components/ui/button';
 import { BookUser, FileCheck2, FileUp, History, Users } from 'lucide-react';
 import { MasterDocumentList } from './components/master-document-list';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, query, where, getCountFromServer, doc, collectionGroup } from 'firebase/firestore';
+
+type UserProfile = {
+    isAdmin?: boolean;
+}
 
 export default function AdminPage() {
     const router = useRouter();
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
+
+    // State to hold the definitive admin status
+    const [isAdmin, setIsAdmin] = useState(false);
+    
+    // State for stats
     const [stats, setStats] = useState({ masters: 0, verifications: 0, users: 0 });
     const [isStatsLoading, setIsStatsLoading] = useState(true);
+
+    // Get the user's profile to check for isAdmin flag
+    const userDocRef = useMemoFirebase(() => {
+        if (!firestore || !user?.uid) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user?.uid]);
+
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
 
     useEffect(() => {
         const isAdminAuthenticated = sessionStorage.getItem('isAdminAuthenticated');
@@ -26,15 +43,23 @@ export default function AdminPage() {
             router.push('/admin/login');
         }
     }, [router]);
-    
-    // Fetch stats once the user is confirmed to be an admin
+
+    // Determine admin status once profile is loaded
     useEffect(() => {
-        if (user && firestore) {
+        if (!isProfileLoading && userProfile) {
+            setIsAdmin(userProfile.isAdmin === true);
+        }
+    }, [isProfileLoading, userProfile]);
+    
+    // Fetch stats ONLY if the user is confirmed to be an admin
+    useEffect(() => {
+        if (isAdmin && firestore) {
             const fetchStats = async () => {
                 setIsStatsLoading(true);
                 try {
                     const mastersQuery = query(collection(firestore, 'document_masters'));
-                    const verificationsQuery = query(collection(firestore, 'users')); // A proxy for total verifications for now
+                    // Use collectionGroup to count all verifications across all users
+                    const verificationsQuery = query(collectionGroup(firestore, 'verification_history'));
                     const usersQuery = query(collection(firestore, 'users'));
                     
                     const [mastersSnap, verificationsSnap, usersSnap] = await Promise.all([
@@ -45,19 +70,21 @@ export default function AdminPage() {
 
                     setStats({
                         masters: mastersSnap.data().count,
-                        verifications: verificationsSnap.data().count * 5, // Placeholder logic
+                        verifications: verificationsSnap.data().count,
                         users: usersSnap.data().count
                     });
                 } catch (error) {
                     console.error("Error fetching admin stats:", error);
+                    // Optionally set an error state to show in the UI
                 }
                 setIsStatsLoading(false);
             };
-
-            // Simple check, assuming admin status is verified by login route
             fetchStats();
+        } else if (!isUserLoading && !isProfileLoading) {
+            // If we know the user is not an admin, stop loading
+            setIsStatsLoading(false);
         }
-    }, [user, firestore]);
+    }, [isAdmin, firestore, isUserLoading, isProfileLoading]);
 
     const handleLogout = () => {
         sessionStorage.removeItem('isAdminAuthenticated');
@@ -100,11 +127,11 @@ export default function AdminPage() {
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">All Verification History</CardTitle>
+                            <CardTitle className="text-sm font-medium">Platform Verifications</CardTitle>
                             <History className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{isStatsLoading ? '...' : stats.verifications}+</div>
+                            <div className="text-2xl font-bold">{isStatsLoading ? '...' : stats.verifications}</div>
                              <Button size="sm" variant="outline" className="mt-1" asChild>
                                 <Link href="/admin/history">View History</Link>
                              </Button>
