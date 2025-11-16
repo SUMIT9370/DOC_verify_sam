@@ -80,9 +80,9 @@ export function SignUpForm() {
                   email: firebaseUser.email,
                   displayName: firebaseUser.displayName,
                   photoURL: firebaseUser.photoURL,
-                  userType: userType, // Get the selected user type from the form state
+                  userType: 'student', // Default to student for social sign-ups
               };
-               // ** FIX: Add isAdmin flag for specific emails **
+              // ** FIX: Add isAdmin flag ONLY for the specific email **
               if (firebaseUser.email === 'sp936145@gmail.com') {
                 userProfile.isAdmin = true;
               }
@@ -100,7 +100,7 @@ export function SignUpForm() {
     };
 
     processRedirect();
-  }, [auth, firestore, userType]);
+  }, [auth, firestore]);
 
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export function SignUpForm() {
                 photoURL: firebaseUser.photoURL,
                 userType: values.userType,
             };
-            // ** FIX: Add isAdmin flag for specific emails **
+            // ** FIX: Add isAdmin flag ONLY for the specific email **
             if (firebaseUser.email === 'sp936145@gmail.com') {
                 userProfile.isAdmin = true;
             }
