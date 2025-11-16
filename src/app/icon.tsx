@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import Image from 'next/image';
 
 export const size = {
   width: 32,
@@ -6,8 +7,8 @@ export const size = {
 };
 export const contentType = 'image/png';
 
-// This is now a fallback for platforms that use maskable icons or other generation methods.
-// The primary favicon is now set via static file export in layout.tsx.
+// This component generates the favicon for the application.
+// It uses the app's logo.png from the public directory.
 export default function Icon() {
   return new ImageResponse(
     (
@@ -18,11 +19,19 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#00308F',
+          backgroundColor: 'white',
           borderRadius: '50%',
         }}
       >
-        <span style={{color: 'white', fontSize: 24, fontFamily: 'sans-serif'}}>D</span>
+        <img
+            width="32"
+            height="32"
+            src="http://localhost:9002/logo.png"
+            style={{
+                borderRadius: '4px',
+            }}
+            alt="DocVerify Logo"
+        />
       </div>
     ),
     {
