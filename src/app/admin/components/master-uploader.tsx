@@ -4,12 +4,15 @@ import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, File as FileIcon, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStorage } from '@/firebase';
 import { extractDocumentData, type ExtractDocumentDataOutput } from '@/ai/flows/extract-document-data';
 import { collection, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { v4 as uuidv4 } from 'uuid';
+
 
 type FileWithPreview = File & {
   preview: string;
@@ -31,6 +34,7 @@ export function MasterUploader() {
   const [error, setError] = useState<string | null>(null);
   
   const firestore = useFirestore();
+  const storage = useStorage();
   const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -56,23 +60,30 @@ export function MasterUploader() {
   });
 
   const handleProcessAndSave = async () => {
-    if (!file || !firestore) return;
+    if (!file || !firestore || !storage) return;
 
     setIsProcessing(true);
     setResult(null);
     setError(null);
 
     try {
+      // 1. Upload file to Firebase Storage
+      const storageRef = ref(storage, `master_documents/${uuidv4()}-${file.name}`);
+      const uploadResult = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+
+      // 2. Get Data URI for AI processing (this is temporary for the AI call)
       const dataUri = await fileToDataUri(file);
       const extractedData = await extractDocumentData({ documentDataUri: dataUri });
       setResult(extractedData);
 
-      // Save to Firestore, including the data URI of the image
+      // 3. Save to Firestore with the Storage URL, not the Data URI
       const mastersCollection = collection(firestore, 'document_masters');
       const dataToSave = {
         documentType: extractedData.documentType,
         documentData: extractedData.documentData,
-        documentDataUri: dataUri 
+        documentImageUrl: downloadURL, // Store the efficient URL
+        extractedText: extractedData.extractedText,
       };
 
       addDoc(mastersCollection, dataToSave)
@@ -97,12 +108,13 @@ export function MasterUploader() {
         });
 
     } catch (e: any) {
-      // This will catch errors from the AI flow or file reading
+      // This will catch errors from the AI flow, file reading, or storage upload
       console.error(e);
-      setError('Failed to process the document with AI. Please try again.');
+      const errorMessage = 'Failed to process and save the document. Please try again.';
+      setError(errorMessage);
        toast({
           title: 'Processing Error',
-          description: 'Failed to process the document with AI. Please try again.',
+          description: errorMessage,
           variant: 'destructive',
         });
       setIsProcessing(false);
@@ -121,7 +133,7 @@ export function MasterUploader() {
           <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg text-center h-full">
               <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
               <p className="font-semibold">Processing Document...</p>
-              <p className="text-sm text-muted-foreground">The AI is extracting key information. Please wait.</p>
+              <p className="text-sm text-muted-foreground">Uploading to storage & analyzing with AI. Please wait.</p>
           </div>
       )
   }
