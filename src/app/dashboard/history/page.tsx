@@ -13,7 +13,7 @@ import {
   } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from '@/components/ui/skeleton';
-import { File, Inbox } from 'lucide-react';
+import { File, Inbox, ZoomIn } from 'lucide-react';
 import { format } from 'date-fns';
 import {
     Dialog,
@@ -22,6 +22,8 @@ import {
     DialogTitle,
     DialogTrigger,
   } from "@/components/ui/dialog"
+import { ReVerificationDialog } from './re-verification-dialog';
+import { useState } from 'react';
 
 type VerificationHistoryItem = {
     id: string;
@@ -38,6 +40,8 @@ type VerificationHistoryItem = {
 export default function HistoryPage() {
     const firestore = useFirestore();
     const { user } = useUser();
+    const [reverifyItem, setReverifyItem] = useState<VerificationHistoryItem | null>(null);
+
 
     const historyQuery = useMemoFirebase(() => {
         if (!firestore || !user?.uid) return null;
@@ -112,8 +116,15 @@ export default function HistoryPage() {
                                         </div>
                                         <div className="space-y-4">
                                             <h4 className="font-semibold">Document Image</h4>
-                                            <div className="relative aspect-square border rounded-md bg-white p-2">
+                                            <div 
+                                                className="relative aspect-square border rounded-md bg-white p-2 group cursor-pointer"
+                                                onClick={() => setReverifyItem(item)}
+                                            >
                                                 <Image src={item.documentUrl} alt={item.documentName} layout="fill" objectFit="contain" />
+                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <ZoomIn className="h-10 w-10 text-white" />
+                                                    <span className="ml-2 text-white font-semibold">Zoom & Re-verify</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -132,6 +143,13 @@ export default function HistoryPage() {
                     </div>
                 )}
             </div>
+            {reverifyItem && (
+                 <ReVerificationDialog 
+                    isOpen={!!reverifyItem} 
+                    onClose={() => setReverifyItem(null)} 
+                    item={reverifyItem} 
+                />
+            )}
         </div>
     );
 }
